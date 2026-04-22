@@ -18,3 +18,9 @@ python -m eaglevision.cli.infer_depth --input image.jpg --output outputs/depth.p
 ```
 
 The repository is organized so later phases can add learned fusion, source-depth prediction regimes, refinement, and generative completion modules without disturbing Phase 1 geometry.
+
+Kaggle-facing artifacts:
+
+- `notebooks/kaggle_phase1_setup_train.ipynb`
+- `notebooks/kaggle_phase1_eval_infer.ipynb`
+- `docs/kaggle_submission.md`

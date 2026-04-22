@@ -89,3 +89,18 @@ See [docs/repository_guide.md](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs
 - [Experiments](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/experiments.md)
 - [Repository Guide](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/repository_guide.md)
 - [Phase 1 Scope](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/phase1_scope.md)
+- [Kaggle Submission Guide](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/kaggle_submission.md)
+
+## Kaggle
+
+Submission-ready notebooks are available in [notebooks](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks).
+
+Recommended Kaggle input dataset:
+
+- `klein2111/scannet-2d`
+- `https://www.kaggle.com/datasets/klein2111/scannet-2d`
+
+Notebook entrypoints:
+
+- [kaggle_phase1_setup_train.ipynb](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks/kaggle_phase1_setup_train.ipynb)
+- [kaggle_phase1_eval_infer.ipynb](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks/kaggle_phase1_eval_infer.ipynb)
