@@ -1,12 +1,37 @@
 [project]
 name = "eaglevision"
 version = "0.1.0"
-description = "EagleVision depth estimation baselines"
+description = "EagleVision Phase 1 geometry-first depth adaptation workspace"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "numpy>=1.26.0",
     "opencv-python>=4.10.0.84",
+    "pyyaml>=6.0.2",
+    "tqdm>=4.66.0",
+    "Pillow>=10.0.0",
+    "matplotlib>=3.8.0",
+    "scikit-image>=0.22.0",
+    "einops>=0.8.0",
     "torch>=2.2.0",
     "torchvision>=0.17.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+eaglevision-train = "eaglevision.cli.train:main"
+eaglevision-eval = "eaglevision.cli.eval:main"
+eaglevision-compare = "eaglevision.cli.compare_models:main"
+eaglevision-infer-depth = "eaglevision.cli.infer_depth:main"
+eaglevision-render = "eaglevision.cli.render_novel_view:main"
+eaglevision-demo = "eaglevision.cli.demo_roundtrip:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

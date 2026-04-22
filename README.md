@@ -1,97 +1,91 @@
 # EagleVision
 
-This repository includes a baseline implementation of **Depth Anything V2** under:
+EagleVision is a modular research repository for improving a monocular depth estimator by training it inside a geometry-first round-trip novel-view-synthesis loop on indoor scenes. In Phase 1, the main model being improved is the depth estimator, not a learned renderer. The geometry stack provides explicit supervision and evaluation for geometric usefulness.
 
-`baseline/depth_anything_v2`
+The repository preserves the existing Depth Anything V2 baseline under `baseline/depth_anything_v2` as a vendor-style dependency. New work lives under `src/eaglevision`, with configs, scripts, tests, and docs organized around a clean Phase 1 training and evaluation workflow.
 
-The CLI entrypoint is:
+## Phase 1 Focus
 
-```bash
-python -m baseline.depth_anything_v2 <command>
+- load ScanNet-style paired indoor views with controlled camera motion
+- render nearby target views with explicit RGB-D geometry
+- adapt a mostly frozen Depth Anything V2 model with a lightweight residual head
+- fuse warped and predicted target depth with simple visibility-based hole filling
+- reconstruct the source view by backward warping
+- train with round-trip rendering and depth anchoring losses
+- evaluate both geometric usefulness and direct depth quality
+
+## Repository Layout
+
+```text
+baseline/depth_anything_v2     Vendor baseline kept intact
+configs/                       Data, model, train, and eval YAMLs
+docs/                          Architecture, scope, training, and experiment notes
+scripts/                       Thin command wrappers
+src/eaglevision/               Phase 1 implementation
+tests/                         Fast geometry and interface tests
 ```
 
-## Environment
-
-Depth Anything V2 baseline targets Python **3.11 or 3.12**.
-
-Install dependencies with your preferred tool, for example:
+## Install
 
 ```bash
-pip install -e .
+pip install -e .[dev]
 ```
 
-## Commands
+## Baseline CLI
 
-### 1) Download checkpoints
-
-Downloads official checkpoints into `baseline/depth_anything_v2/checkpoints` by default.
+The original baseline remains available:
 
 ```bash
 python -m baseline.depth_anything_v2 download
+python -m baseline.depth_anything_v2 infer --input <image-or-folder> --output-dir outputs/baseline
 ```
 
-Examples:
+## Phase 1 CLI
+
+Train:
 
 ```bash
-# relative-only small and base
-python -m baseline.depth_anything_v2 download --mode relative --encoder vits --encoder vitb
-
-# metric-only (indoor/hypersim profile)
-python -m baseline.depth_anything_v2 download --mode metric --profile hypersim
-
-# metric-only (outdoor/vkitti profile)
-python -m baseline.depth_anything_v2 download --mode metric --profile vkitti
+python -m eaglevision.cli.train --config configs/train/phase1.yaml
 ```
 
-### 2) Run inference
-
-Supports both a single image path and a directory path.
+Evaluate:
 
 ```bash
-python -m baseline.depth_anything_v2 infer \
-  --input <image-or-folder> \
-  --output-dir <output-folder>
+python -m eaglevision.cli.eval --config configs/eval/default.yaml
+python -m eaglevision.cli.eval --config configs/eval/default.yaml --baseline-only
 ```
 
-Examples:
+Single-image depth inference:
 
 ```bash
-# relative depth with vitl (default mode/encoder)
-python -m baseline.depth_anything_v2 infer \
-  --input assets/example.jpg \
-  --output-dir outputs/relative
-
-# metric depth with indoor profile (hypersim)
-python -m baseline.depth_anything_v2 infer \
-  --input assets/example.jpg \
-  --output-dir outputs/metric_hypersim \
-  --mode metric \
-  --profile hypersim \
-  --encoder vitl
-
-# metric depth with outdoor profile (vkitti)
-python -m baseline.depth_anything_v2 infer \
-  --input assets/example.jpg \
-  --output-dir outputs/metric_vkitti \
-  --mode metric \
-  --profile vkitti \
-  --encoder vitb
+python -m eaglevision.cli.infer_depth --input image.jpg --output outputs/depth.png
 ```
 
-You can also pass a specific checkpoint path directly:
+Geometric render from RGB-D:
 
 ```bash
-python -m baseline.depth_anything_v2 infer \
-  --input assets/example.jpg \
-  --output-dir outputs/custom_ckpt \
-  --checkpoint /path/to/checkpoint.pth
+python -m eaglevision.cli.render_novel_view \
+  --rgb image.jpg \
+  --depth depth.npy \
+  --intrinsics intrinsics.txt \
+  --transform transform.txt \
+  --output outputs/novel_view.png
 ```
 
-## Output contract
+## Data Assumptions
 
-For each input image, the command writes:
+Phase 1 expects ScanNet-style scene folders with `color/`, `depth/`, and `pose/` subdirectories. Pairing thresholds are config-driven and default to small reliable viewpoint changes:
 
-- `<stem>_depth.npy` (raw float32 depth map)
-- `<stem>_depth.png` (normalized colorized preview)
+- max translation: `0.30 m`
+- max rotation: `10 deg`
+- avoid near-identical views with minimum motion thresholds
 
-When the input is a directory, relative subfolders are preserved in the output directory.
+See [docs/repository_guide.md](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/repository_guide.md) and [src/eaglevision/data/README.md](/C:/Users/Omore/OneDrive/Desktop/EagleVision/src/eaglevision/data/README.md).
+
+## Documentation
+
+- [Architecture](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/architecture.md)
+- [Training Plan](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/training_plan.md)
+- [Experiments](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/experiments.md)
+- [Repository Guide](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/repository_guide.md)
+- [Phase 1 Scope](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/phase1_scope.md)

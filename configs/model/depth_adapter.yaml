@@ -1,0 +1,7 @@
+depth:
+  mode: metric
+  encoder: vitl
+  profile: hypersim
+  checkpoint_path:
+  freeze_backbone: true
+  adapter_hidden_channels: 32

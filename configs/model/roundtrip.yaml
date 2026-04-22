@@ -1,0 +1,4 @@
+name: roundtrip_gt_source_depth
+forward_source_depth: gt
+fusion:
+  type: hole_fill

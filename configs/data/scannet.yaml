@@ -1,0 +1,19 @@
+root: data/scannet
+image_size: [240, 320]
+intrinsics:
+  - [577.8706, 0.0, 159.5]
+  - [0.0, 577.8706, 119.5]
+  - [0.0, 0.0, 1.0]
+pairing:
+  min_translation_m: 0.02
+  max_translation_m: 0.30
+  min_rotation_deg: 1.0
+  max_rotation_deg: 10.0
+  max_index_gap: 30
+splits:
+  train:
+    scenes: []
+  val:
+    scenes: []
+  test:
+    scenes: []
