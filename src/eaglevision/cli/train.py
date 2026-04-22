@@ -42,9 +42,14 @@ def main() -> int:
     config = load_yaml(args.config)
     set_seed(int(config["seed"]))
     device = torch.device(config.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    print(f"Loading training config from {args.config}")
+    print(f"Training on device={device}")
 
     train_dataset = build_dataset(config, "train")
     val_dataset = build_dataset(config, "val") if "val" in config["data"]["splits"] else None
+    print(f"Built train dataset with {len(train_dataset)} pairs")
+    if val_dataset is not None:
+        print(f"Built val dataset with {len(val_dataset)} pairs")
     train_loader = DataLoader(train_dataset, batch_size=config["train"]["batch_size"], shuffle=True, collate_fn=scannet_collate)
     val_loader = None
     if val_dataset is not None:
@@ -71,6 +76,7 @@ def main() -> int:
         vis_interval=int(config["train"]["vis_interval"]),
         checkpoint_interval=int(config["train"]["checkpoint_interval"]),
     )
+    print(f"Writing outputs to {output_dir}")
     trainer.train(num_epochs=int(config["train"]["epochs"]))
     return 0
 

@@ -29,6 +29,8 @@ def main() -> int:
     args = build_argparser().parse_args()
     config = load_yaml(args.config)
     device = torch.device(config.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    print(f"Loading evaluation config from {args.config}")
+    print(f"Evaluating on device={device}")
 
     dataset_cfg = config["data"]
     intrinsics = np.array(dataset_cfg["intrinsics"], dtype=np.float32)
@@ -40,6 +42,7 @@ def main() -> int:
         intrinsics=intrinsics,
         pair_config=pair_cfg,
     )
+    print(f"Built evaluation dataset with {len(dataset)} pairs from {len(dataset_cfg['splits']['val']['scenes'])} scenes")
     dataloader = DataLoader(dataset, batch_size=config["eval"]["batch_size"], shuffle=False, collate_fn=scannet_collate)
 
     depth_cfg = dict(config["model"]["depth"])
@@ -52,7 +55,11 @@ def main() -> int:
             parameter.requires_grad = False
     model = RoundTripDepthNVS(depth_model).to(device)
     if args.checkpoint:
+        print(f"Loading checkpoint from {args.checkpoint}")
         load_checkpoint(args.checkpoint, model)
+    elif args.baseline_only:
+        print("Running baseline-only evaluation with zeroed adapter")
+    print("Starting metric computation")
     metrics = evaluate_model(model, dataloader, device, config["losses"]["weights"])
     for key, value in metrics.items():
         print(f"{key}: {value:.6f}")
