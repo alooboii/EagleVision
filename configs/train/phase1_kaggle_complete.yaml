@@ -1,0 +1,45 @@
+seed: 7
+device: cuda
+output_dir: outputs/phase1_kaggle_complete
+data:
+  root: /kaggle/working/EagleVision/data/scannet
+  image_size: [240, 320]
+  intrinsics:
+    - [577.8706, 0.0, 159.5]
+    - [0.0, 577.8706, 119.5]
+    - [0.0, 0.0, 1.0]
+  pairing:
+    min_translation_m: 0.02
+    max_translation_m: 0.30
+    min_rotation_deg: 1.0
+    max_rotation_deg: 10.0
+    max_index_gap: 30
+  splits:
+    train:
+      scenes: []
+    val:
+      scenes: []
+model:
+  depth:
+    mode: metric
+    encoder: vits
+    profile: hypersim
+    checkpoint_path:
+    freeze_backbone: true
+    adapter_hidden_channels: 32
+train:
+  batch_size: 2
+  epochs: 1
+  lr: 0.0001
+  weight_decay: 0.0001
+  log_interval: 10
+  vis_interval: 50
+  checkpoint_interval: 100
+eval:
+  batch_size: 2
+losses:
+  weights:
+    target_rgb: 1.0
+    cycle_rgb: 1.0
+    cycle_depth: 0.5
+    target_depth: 0.25
