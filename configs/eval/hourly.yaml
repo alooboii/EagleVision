@@ -1,0 +1,37 @@
+device: cuda
+data:
+  root: data/scannet
+  image_size: [160, 224]
+  intrinsics:
+    - [577.8706, 0.0, 159.5]
+    - [0.0, 577.8706, 119.5]
+    - [0.0, 0.0, 1.0]
+  pairing:
+    min_translation_m: 0.02
+    max_translation_m: 0.30
+    min_rotation_deg: 1.0
+    max_rotation_deg: 10.0
+    max_index_gap: 12
+    frame_stride: 3
+    max_frames_per_scene: 150
+    max_pairs_per_scene: 200
+  splits:
+    val:
+      scenes: []
+model:
+  depth:
+    mode: metric
+    encoder: vits
+    profile: hypersim
+    checkpoint_path:
+    freeze_backbone: true
+    adapter_hidden_channels: 32
+eval:
+  batch_size: 1
+  max_batches: 200
+losses:
+  weights:
+    target_rgb: 1.0
+    cycle_rgb: 1.0
+    cycle_depth: 0.5
+    target_depth: 0.25

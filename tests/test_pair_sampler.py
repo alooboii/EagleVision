@@ -20,3 +20,11 @@ def test_pair_sampler_filters_by_motion_limits() -> None:
     poses = [_pose(0.0, 0.0), _pose(0.1, 5.0), _pose(0.6, 12.0)]
     pairs = filter_candidate_pairs(poses, [0, 1, 2], PairSamplingConfig())
     assert pairs == [(0, 1)]
+
+
+def test_pair_sampler_max_pairs_cap() -> None:
+    poses = [_pose(float(i) * 0.02, 2.0 + float(i) * 0.25) for i in range(40)]
+    frame_ids = list(range(40))
+    config = PairSamplingConfig(max_pairs_per_scene=10, max_index_gap=20)
+    pairs = filter_candidate_pairs(poses, frame_ids, config)
+    assert len(pairs) <= 10

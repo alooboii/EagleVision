@@ -27,6 +27,7 @@ class Trainer:
         log_interval: int = 10,
         vis_interval: int = 100,
         checkpoint_interval: int = 500,
+        max_steps_per_epoch: int | None = None,
     ) -> None:
         self.model = model
         self.optimizer = optimizer
@@ -38,6 +39,7 @@ class Trainer:
         self.log_interval = log_interval
         self.vis_interval = vis_interval
         self.checkpoint_interval = checkpoint_interval
+        self.max_steps_per_epoch = max_steps_per_epoch
         self.logger = JsonlLogger(output_dir / "train_metrics.jsonl")
 
     def train(self, num_epochs: int) -> None:
@@ -45,6 +47,7 @@ class Trainer:
         self.model.to(self.device)
         for epoch in range(num_epochs):
             self.model.train()
+            epoch_step_count = 0
             for batch in tqdm(self.train_loader, desc=f"epoch {epoch + 1}/{num_epochs}"):
                 batch = {key: value.to(self.device) if torch.is_tensor(value) else value for key, value in batch.items()}
                 outputs = self.model(batch)
@@ -53,6 +56,7 @@ class Trainer:
                 losses["loss_total"].backward()
                 self.optimizer.step()
                 step += 1
+                epoch_step_count += 1
 
                 if step % self.log_interval == 0:
                     self.logger.log({"step": step, "epoch": epoch + 1, **{k: float(v.item()) for k, v in losses.items()}})
@@ -62,6 +66,8 @@ class Trainer:
                     save_debug_panel(outputs, self.output_dir / "panels" / f"step_{step:07d}.png")
                 if step % self.checkpoint_interval == 0:
                     save_checkpoint(self.output_dir / "checkpoints" / f"step_{step:07d}.pt", self.model, self.optimizer, step)
+                if self.max_steps_per_epoch is not None and epoch_step_count >= self.max_steps_per_epoch:
+                    break
 
             if self.val_loader is not None:
                 metrics = evaluate_model(self.model, self.val_loader, self.device, self.loss_weights)

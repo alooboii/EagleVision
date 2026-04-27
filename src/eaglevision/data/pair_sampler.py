@@ -14,6 +14,9 @@ class PairSamplingConfig:
     min_rotation_deg: float = 1.0
     max_rotation_deg: float = 10.0
     max_index_gap: int = 30
+    frame_stride: int = 1
+    max_frames_per_scene: int | None = None
+    max_pairs_per_scene: int | None = None
 
 
 def pose_translation_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
@@ -48,4 +51,10 @@ def filter_candidate_pairs(
             if not (config.min_rotation_deg <= rotation <= config.max_rotation_deg):
                 continue
             pairs.append((frame_list[i], frame_list[j]))
+    if config.max_pairs_per_scene is not None and len(pairs) > config.max_pairs_per_scene:
+        keep = max(1, int(config.max_pairs_per_scene))
+        # Uniformly downsample to keep broad motion diversity while bounding runtime.
+        sampled_indices = np.linspace(0, len(pairs) - 1, num=keep, dtype=int)
+        pairs = [pairs[index] for index in sampled_indices]
+
     return pairs

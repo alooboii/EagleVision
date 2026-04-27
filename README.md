@@ -55,6 +55,22 @@ python -m eaglevision.cli.eval --config configs/eval/default.yaml
 python -m eaglevision.cli.eval --config configs/eval/default.yaml --baseline-only
 ```
 
+Fast-turn (roughly hour-scale) profile:
+
+```bash
+python -m eaglevision.cli.train --config configs/train/phase1_hourly.yaml
+python -m eaglevision.cli.eval --config configs/eval/hourly.yaml --baseline-only
+python -m eaglevision.cli.eval --config configs/eval/hourly.yaml --checkpoint <ckpt.pt>
+```
+
+The hourly profile bounds runtime with:
+
+- lower resolution (`160x224`)
+- smaller model (`vits`)
+- frame subsampling (`frame_stride`)
+- per-scene frame/pair caps (`max_frames_per_scene`, `max_pairs_per_scene`)
+- capped training/eval work (`max_steps_per_epoch`, `eval.max_batches`)
+
 Single-image depth inference:
 
 ```bash

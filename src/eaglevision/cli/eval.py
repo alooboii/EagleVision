@@ -22,6 +22,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--baseline-only", action="store_true")
+    parser.add_argument("--max-batches", type=int)
     return parser
 
 
@@ -59,8 +60,21 @@ def main() -> int:
         load_checkpoint(args.checkpoint, model)
     elif args.baseline_only:
         print("Running baseline-only evaluation with zeroed adapter")
+    max_batches = args.max_batches
+    if max_batches is None:
+        maybe_max = config.get("eval", {}).get("max_batches")
+        if maybe_max is not None:
+            max_batches = int(maybe_max)
+    if max_batches is not None:
+        print(f"Using max_batches={max_batches}")
     print("Starting metric computation")
-    metrics = evaluate_model(model, dataloader, device, config["losses"]["weights"])
+    metrics = evaluate_model(
+        model=model,
+        dataloader=dataloader,
+        device=device,
+        loss_weights=config["losses"]["weights"],
+        max_batches=max_batches,
+    )
     for key, value in metrics.items():
         print(f"{key}: {value:.6f}")
     return 0

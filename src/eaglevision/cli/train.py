@@ -75,6 +75,11 @@ def main() -> int:
         log_interval=int(config["train"]["log_interval"]),
         vis_interval=int(config["train"]["vis_interval"]),
         checkpoint_interval=int(config["train"]["checkpoint_interval"]),
+        max_steps_per_epoch=(
+            int(config["train"]["max_steps_per_epoch"])
+            if config["train"].get("max_steps_per_epoch") is not None
+            else None
+        ),
     )
     print(f"Writing outputs to {output_dir}")
     trainer.train(num_epochs=int(config["train"]["epochs"]))

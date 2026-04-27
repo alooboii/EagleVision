@@ -27,6 +27,29 @@ Practical caveat:
 4. Export training outputs as a Kaggle dataset if you want a separate evaluation notebook.
 5. Run `notebooks/kaggle_phase1_eval_infer.ipynb` for evaluation and inference.
 
+## Hour-Scale Runtime Profile
+
+If a full pass is too slow, use the quick knobs already wired in the notebooks/configs:
+
+- cap scenes (`MAX_SCENES = 12`)
+- use `vits` encoder
+- resize to `160x224`
+- set pairing caps:
+  - `frame_stride: 3`
+  - `max_frames_per_scene: 150`
+  - `max_pairs_per_scene: 200`
+  - `max_index_gap: 12`
+- cap train/eval work:
+  - `train.max_steps_per_epoch: 300`
+  - `eval.max_batches: 200`
+
+For CLI runs outside notebooks, use:
+
+```bash
+python -m eaglevision.cli.train --config configs/train/phase1_hourly.yaml
+python -m eaglevision.cli.eval --config configs/eval/hourly.yaml --baseline-only
+```
+
 ## Default Kaggle Input Paths
 
 The notebooks default to:

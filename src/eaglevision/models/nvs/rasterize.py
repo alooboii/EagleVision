@@ -14,20 +14,45 @@ def z_buffer_scatter(
     height, width = output_hw
     out_rgb = torch.zeros((batch, channels, height * width), dtype=flat_rgb.dtype, device=flat_rgb.device)
     out_depth = torch.full((batch, height * width), float("inf"), dtype=flat_depth.dtype, device=flat_depth.device)
-    hits = torch.zeros((batch, height * width), dtype=torch.int32, device=flat_depth.device)
+    valid = torch.zeros((batch, height * width), dtype=torch.bool, device=flat_depth.device)
 
+    # This avoids slow Python-per-point loops and keeps z-buffer logic explicit:
+    # sort by depth then pixel-id, and keep the first (nearest) point per pixel.
     for batch_idx in range(batch):
-        for point_idx in range(num_points):
-            linear_idx = int(flat_linear_index[batch_idx, point_idx].item())
-            depth = flat_depth[batch_idx, point_idx]
-            if linear_idx < 0:
-                continue
-            hits[batch_idx, linear_idx] += 1
-            if depth < out_depth[batch_idx, linear_idx]:
-                out_depth[batch_idx, linear_idx] = depth
-                out_rgb[batch_idx, :, linear_idx] = flat_rgb[batch_idx, :, point_idx]
+        linear_idx = flat_linear_index[batch_idx]
+        depth = flat_depth[batch_idx]
+        rgb = flat_rgb[batch_idx]
 
-    valid = torch.isfinite(out_depth)
+        point_valid = linear_idx >= 0
+        if not torch.any(point_valid):
+            continue
+
+        linear_idx = linear_idx[point_valid]
+        depth = depth[point_valid]
+        rgb = rgb[:, point_valid]
+
+        depth_order = torch.argsort(depth, stable=True)
+        linear_idx = linear_idx[depth_order]
+        depth = depth[depth_order]
+        rgb = rgb[:, depth_order]
+
+        pixel_order = torch.argsort(linear_idx, stable=True)
+        linear_idx = linear_idx[pixel_order]
+        depth = depth[pixel_order]
+        rgb = rgb[:, pixel_order]
+
+        keep_first = torch.ones(linear_idx.shape[0], dtype=torch.bool, device=linear_idx.device)
+        if keep_first.numel() > 1:
+            keep_first[1:] = linear_idx[1:] != linear_idx[:-1]
+
+        selected_idx = linear_idx[keep_first]
+        selected_depth = depth[keep_first]
+        selected_rgb = rgb[:, keep_first]
+
+        out_depth[batch_idx, selected_idx] = selected_depth
+        out_rgb[batch_idx, :, selected_idx] = selected_rgb
+        valid[batch_idx, selected_idx] = True
+
     out_depth = torch.where(valid, out_depth, torch.zeros_like(out_depth))
     return (
         out_rgb.reshape(batch, channels, height, width),

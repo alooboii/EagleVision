@@ -66,6 +66,10 @@ class ScanNetPairDataset(Dataset[dict[str, Any]]):
         depth_dir = scene_dir / "depth"
         pose_dir = scene_dir / "pose"
         frame_ids = sorted(int(path.stem) for path in color_dir.glob("*.jpg"))
+        frame_stride = max(1, int(self.pair_config.frame_stride))
+        frame_ids = frame_ids[::frame_stride]
+        if self.pair_config.max_frames_per_scene is not None:
+            frame_ids = frame_ids[: int(self.pair_config.max_frames_per_scene)]
         records = [
             FrameRecord(
                 frame_id=frame_id,
