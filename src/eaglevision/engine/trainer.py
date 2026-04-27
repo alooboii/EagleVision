@@ -72,3 +72,11 @@ class Trainer:
             if self.val_loader is not None:
                 metrics = evaluate_model(self.model, self.val_loader, self.device, self.loss_weights)
                 self.logger.log({"step": step, "epoch": epoch + 1, "split": "val", **metrics})
+
+            # Always keep a terminal checkpoint for this epoch, even if interval was never hit.
+            save_checkpoint(
+                self.output_dir / "checkpoints" / f"epoch_{epoch + 1:03d}_final_step_{step:07d}.pt",
+                self.model,
+                self.optimizer,
+                step,
+            )

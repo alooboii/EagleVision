@@ -21,12 +21,18 @@ class PairSamplingConfig:
 
 def pose_translation_distance(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
     """Compute Euclidean translation distance between two camera poses."""
+    if not np.isfinite(pose_a).all() or not np.isfinite(pose_b).all():
+        return float("inf")
     return float(np.linalg.norm(pose_a[:3, 3] - pose_b[:3, 3]))
 
 
 def pose_rotation_distance_deg(pose_a: np.ndarray, pose_b: np.ndarray) -> float:
     """Compute relative rotation angle in degrees."""
+    if not np.isfinite(pose_a).all() or not np.isfinite(pose_b).all():
+        return float("inf")
     rel = pose_b[:3, :3] @ pose_a[:3, :3].T
+    if not np.isfinite(rel).all():
+        return float("inf")
     trace = np.clip((np.trace(rel) - 1.0) * 0.5, -1.0, 1.0)
     return float(math.degrees(math.acos(trace)))
 
@@ -41,7 +47,11 @@ def filter_candidate_pairs(
     frame_list = list(frame_ids)
     pairs: list[tuple[int, int]] = []
     for i in range(len(pose_list)):
+        if not np.isfinite(pose_list[i]).all():
+            continue
         for j in range(i + 1, len(pose_list)):
+            if not np.isfinite(pose_list[j]).all():
+                continue
             if frame_list[j] - frame_list[i] > config.max_index_gap:
                 break
             translation = pose_translation_distance(pose_list[i], pose_list[j])
