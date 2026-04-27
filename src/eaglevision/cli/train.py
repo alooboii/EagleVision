@@ -48,6 +48,11 @@ def main() -> int:
     train_dataset = build_dataset(config, "train")
     val_dataset = build_dataset(config, "val") if "val" in config["data"]["splits"] else None
     print(f"Built train dataset with {len(train_dataset)} pairs")
+    if len(train_dataset) == 0:
+        raise RuntimeError(
+            "Training dataset has zero valid pairs. "
+            "Check scene normalization, file naming alignment (color/depth/pose stems), or relax pairing thresholds."
+        )
     if val_dataset is not None:
         print(f"Built val dataset with {len(val_dataset)} pairs")
     train_loader = DataLoader(train_dataset, batch_size=config["train"]["batch_size"], shuffle=True, collate_fn=scannet_collate)

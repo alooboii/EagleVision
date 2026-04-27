@@ -16,6 +16,7 @@ from eaglevision.data.transforms import depth_to_tensor, image_to_tensor, resize
 @dataclass(frozen=True)
 class FrameRecord:
     frame_id: int
+    frame_key: str
     rgb_path: Path
     depth_path: Path
     pose_path: Path
@@ -65,21 +66,41 @@ class ScanNetPairDataset(Dataset[dict[str, Any]]):
         color_dir = scene_dir / "color"
         depth_dir = scene_dir / "depth"
         pose_dir = scene_dir / "pose"
-        frame_ids = sorted(int(path.stem) for path in color_dir.glob("*.jpg"))
+        color_paths = list(color_dir.glob("*.jpg")) + list(color_dir.glob("*.jpeg")) + list(color_dir.glob("*.png"))
+        depth_paths = list(depth_dir.glob("*.png")) + list(depth_dir.glob("*.npy"))
+        pose_paths = list(pose_dir.glob("*.txt"))
+
+        color_map = {path.stem: path for path in color_paths}
+        depth_map = {path.stem: path for path in depth_paths}
+        pose_map = {path.stem: path for path in pose_paths}
+
+        common_stems = sorted(
+            set(color_map).intersection(depth_map).intersection(pose_map),
+            key=self._stem_sort_key,
+        )
         frame_stride = max(1, int(self.pair_config.frame_stride))
-        frame_ids = frame_ids[::frame_stride]
+        common_stems = common_stems[::frame_stride]
         if self.pair_config.max_frames_per_scene is not None:
-            frame_ids = frame_ids[: int(self.pair_config.max_frames_per_scene)]
+            common_stems = common_stems[: int(self.pair_config.max_frames_per_scene)]
+
         records = [
             FrameRecord(
-                frame_id=frame_id,
-                rgb_path=color_dir / f"{frame_id}.jpg",
-                depth_path=depth_dir / f"{frame_id}.png",
-                pose_path=pose_dir / f"{frame_id}.txt",
+                frame_id=frame_idx,
+                frame_key=frame_key,
+                rgb_path=color_map[frame_key],
+                depth_path=depth_map[frame_key],
+                pose_path=pose_map[frame_key],
             )
-            for frame_id in frame_ids
+            for frame_idx, frame_key in enumerate(common_stems)
         ]
-        return [record for record in records if record.rgb_path.exists() and record.depth_path.exists() and record.pose_path.exists()]
+        return records
+
+    @staticmethod
+    def _stem_sort_key(stem: str) -> tuple[int, int | str]:
+        try:
+            return (0, int(stem))
+        except ValueError:
+            return (1, stem)
 
     @staticmethod
     def _load_pose(path: Path) -> np.ndarray:
@@ -127,4 +148,6 @@ class ScanNetPairDataset(Dataset[dict[str, Any]]):
             "scene_id": sample["scene_id"],
             "source_frame_id": sample["source_record"].frame_id,
             "target_frame_id": sample["target_record"].frame_id,
+            "source_frame_key": sample["source_record"].frame_key,
+            "target_frame_key": sample["target_record"].frame_key,
         }

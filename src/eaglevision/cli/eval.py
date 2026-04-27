@@ -44,6 +44,11 @@ def main() -> int:
         pair_config=pair_cfg,
     )
     print(f"Built evaluation dataset with {len(dataset)} pairs from {len(dataset_cfg['splits']['val']['scenes'])} scenes")
+    if len(dataset) == 0:
+        raise RuntimeError(
+            "Evaluation dataset has zero valid pairs. "
+            "Check scene normalization, file naming alignment (color/depth/pose stems), or relax pairing thresholds."
+        )
     dataloader = DataLoader(dataset, batch_size=config["eval"]["batch_size"], shuffle=False, collate_fn=scannet_collate)
 
     depth_cfg = dict(config["model"]["depth"])
