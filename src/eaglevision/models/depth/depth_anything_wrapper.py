@@ -23,6 +23,7 @@ class DepthAnythingWithAdapter(nn.Module):
         checkpoint_path: Path | None = None,
         freeze_backbone: bool = True,
         adapter_hidden_channels: int = 32,
+        normalize_backbone_input: bool = False,
     ) -> None:
         super().__init__()
         self.backbone = create_model(mode=mode, encoder=encoder, profile=profile)
@@ -35,16 +36,24 @@ class DepthAnythingWithAdapter(nn.Module):
                 parameter.requires_grad = False
         self.adapter = ResidualDepthAdapter(hidden_channels=adapter_hidden_channels)
         self.mode = mode
+        self.normalize_backbone_input = normalize_backbone_input
+        # DA-V2 expects ImageNet-style normalized RGB at inference.
+        self.register_buffer("rgb_mean", torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(1, 3, 1, 1))
+        self.register_buffer("rgb_std", torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(1, 3, 1, 1))
 
     def forward(self, images: torch.Tensor) -> dict[str, torch.Tensor]:
+        backbone_input = images
+        if self.normalize_backbone_input:
+            backbone_input = (backbone_input - self.rgb_mean) / self.rgb_std
+
         # The baseline prefers inputs divisible by 14; keep the resize local to the wrapper.
-        input_h, input_w = images.shape[-2:]
+        input_h, input_w = backbone_input.shape[-2:]
         pad_h = (14 - input_h % 14) % 14
         pad_w = (14 - input_w % 14) % 14
         if pad_h or pad_w:
-            resized = F.pad(images, (0, pad_w, 0, pad_h), mode="replicate")
+            resized = F.pad(backbone_input, (0, pad_w, 0, pad_h), mode="replicate")
         else:
-            resized = images
+            resized = backbone_input
         with torch.set_grad_enabled(any(parameter.requires_grad for parameter in self.backbone.parameters())):
             base_depth = self.backbone(resized)
         if pad_h or pad_w:
