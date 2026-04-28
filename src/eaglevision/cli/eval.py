@@ -52,8 +52,6 @@ def main() -> int:
     dataloader = DataLoader(dataset, batch_size=config["eval"]["batch_size"], shuffle=False, collate_fn=scannet_collate)
 
     depth_cfg = dict(config["model"]["depth"])
-    if args.baseline_only:
-        depth_cfg["adapter_hidden_channels"] = 1
     depth_model = DepthAnythingWithAdapter(**depth_cfg)
     if args.baseline_only:
         for parameter in depth_model.adapter.parameters():
