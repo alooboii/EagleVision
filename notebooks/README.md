@@ -1,25 +1,15 @@
-# Kaggle Notebooks
+# EagleVision Kaggle Notebooks
 
-These notebooks are intended for Kaggle execution with the repository cloned inside the notebook runtime.
+This directory contains the Kaggle notebooks, ablation notebook, and final markdown report for the **EagleVision** deep learning research project.
 
-Recommended Kaggle input dataset:
+EagleVision studies whether a pretrained monocular depth model can be improved for RGB-D geometric adaptation through lightweight adapter training, direct depth supervision, and carefully weighted geometric consistency objectives.
 
-- `klein2111/scannet-2d`
-- `https://www.kaggle.com/datasets/klein2111/scannet-2d`
+Main Training Notebook: [eaglevision2.ipynb]
+---
 
-Why this dataset:
+## Recommended Kaggle Dataset
 
-- it is the clearest Kaggle-hosted ScanNet-derived option found for this project
-- it is materially closer to the repository objective than generic RGB-D alternatives on Kaggle
-- its scale appears sufficient for a real indoor paired-view geometry workflow
+Use the following Kaggle dataset as notebook input:
 
-Important caveat:
-
-- the Kaggle listing exposes limited structural documentation and unclear license metadata
-- the notebooks therefore inspect and normalize the dataset before training
-- if the folder structure differs from ScanNet-style scene folders, adjust the discovery helper in the notebook
-
-Notebook roles:
-
-- `kaggle_phase1_setup_train.ipynb`: clone repo, install deps, set up dataset, download checkpoint, generate configs, train, run baseline eval
-- `kaggle_phase1_eval_infer.ipynb`: clone repo, set up dataset, run baseline/adapted eval, compare metrics, run inference
+```text
+klein2111/scannet-2d
