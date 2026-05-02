@@ -1,28 +1,101 @@
 # EagleVision Kaggle Notebooks
 
-This folder contains the Kaggle notebooks, ablation notebook, and final report files for the **EagleVision** deep learning research project.
+This repository contains the Kaggle notebooks and report files for the **EagleVision** deep learning research project.
 
 EagleVision investigates whether a pretrained monocular depth model can be improved for RGB-D geometric adaptation using lightweight adapter training, direct metric depth supervision, and carefully weighted geometric consistency objectives.
 
 ---
 
+## Main Files
+
+| File | Purpose |
+|---|---|
+| `README.md` | Repository guide for the Kaggle notebooks and reports. |
+| `eaglevision2.ipynb` | **Main training notebook** for the current EagleVision pipeline. |
+| `kaggle-ablations.ipynb` | **Main Kaggle ablation notebook** used to run the final hyperparameter ablation experiments. |
+| `eaglevision_ablation_report.md` | Final report markdown written from the results of `kaggle-ablations.ipynb`. |
+| `eaglevision_hyperparameter_ablation_local_cuda_v3_*.ipynb` | Local/CUDA version of the hyperparameter ablation notebook. |
+| `kaggle_phase1_setup_train.ipynb` | Initial setup and training notebook for Kaggle execution. |
+| `kaggle_phase1_eval_infer.ipynb` | Evaluation and inference notebook for baseline/adapted comparison. |
+| `kaggle_phase1_complete.ipynb` | Complete Phase 1 notebook with corrected preprocessing and backbone visualization. |
+
+---
+
 ## Main Training Notebook
 
-The main training notebook for the current version of the project is:
+The main training file is:
 
 ```text
 eaglevision2.ipynb
 ```
 
-Use this notebook as the primary entry point for training and evaluating the latest EagleVision pipeline.
+Use this notebook as the primary entry point for the current EagleVision training and evaluation pipeline.
 
-> Note: if a local file is named `eglevision2.ipynm`, rename it to `eaglevision2.ipynb` so that GitHub, Jupyter, and Kaggle recognize it correctly as a notebook.
+It is intended for:
+
+- training the latest EagleVision model
+- evaluating the adapted model
+- generating validation metrics
+- checking the current model behavior
+
+---
+
+## Main Ablation Notebook
+
+The final Kaggle ablation notebook is:
+
+```text
+kaggle-ablations.ipynb
+```
+
+This notebook was used for the final reduced-budget hyperparameter ablation study.
+
+It evaluates:
+
+- target-depth loss weight
+- cycle-depth loss weight
+- combined target/cycle depth-weight grids
+- learning rate
+- adapter capacity
+- RGB reconstruction losses
+- camera-motion range
+
+The results from this notebook are summarized in:
+
+```text
+eaglevision_ablation_report.md
+```
+
+So the report file belongs to the results produced by `kaggle-ablations.ipynb`.
+
+---
+
+## Final Report File
+
+The final markdown report is:
+
+```text
+eaglevision_ablation_report.md
+```
+
+This file summarizes:
+
+- the ablation setup
+- the main quantitative results
+- the best configuration
+- improvement over the frozen baseline
+- cycle-consistency interpretation
+- project justification
+- limitations
+- recommended paper wording
+
+Use this file when writing the final paper/report section.
 
 ---
 
 ## Recommended Kaggle Dataset
 
-Use the following Kaggle dataset as input:
+Use the following Kaggle dataset as notebook input:
 
 ```text
 klein2111/scannet-2d
@@ -48,20 +121,6 @@ This dataset is used because:
 The Kaggle dataset has limited structural documentation and unclear license metadata. The notebooks therefore include dataset inspection and normalization logic before training or evaluation.
 
 If the folder structure differs from the expected ScanNet-style scene layout, update the dataset discovery helper inside the notebook.
-
----
-
-## Files in This Folder
-
-| File | Role |
-|---|---|
-| `README.md` | This file. Explains dataset setup, notebook roles, execution order, results, and project justification. |
-| `eaglevision2.ipynb` | Main training notebook for the latest EagleVision pipeline. |
-| `eaglevision_ablation_report.md` | Final markdown report summarizing the ablation results and project justification. |
-| `eaglevision_hyperparameter_ablation_local_cuda_v3_*.ipynb` | Main hyperparameter ablation notebook. Runs reduced-budget experiments and exports numerical results for the paper. |
-| `kaggle_phase1_complete.ipynb` | Complete Phase 1 notebook with corrected preprocessing and backbone visualization. |
-| `kaggle_phase1_eval_infer.ipynb` | Evaluation and inference notebook for baseline/adapted comparison. |
-| `kaggle_phase1_setup_train.ipynb` | Initial setup and training notebook for Kaggle execution. |
 
 ---
 
@@ -128,57 +187,33 @@ eaglevision2.ipynb
 
 This is the main current training notebook.
 
-Use this notebook for:
-
-- latest EagleVision training
-- latest adapter-based depth adaptation experiments
-- validation metric generation
-- checking the current model behavior
+Use this notebook for the latest EagleVision training and evaluation workflow.
 
 ---
 
-### 5. Hyperparameter Ablation
+### 5. Final Kaggle Ablation Study
 
 ```text
-eaglevision_hyperparameter_ablation_local_cuda_v3_*.ipynb
+kaggle-ablations.ipynb
 ```
 
-Use this notebook for the final ablation study.
+This is the main notebook for the final ablation study.
 
-It evaluates:
-
-- target-depth loss weight
-- cycle-depth loss weight
-- combined target/cycle depth-weight grids
-- learning rate
-- adapter capacity
-- RGB reconstruction losses
-- camera-motion range
-
-The notebook is designed to produce:
-
-- numerical ablation results
-- validation metrics
-- exported tables for the paper
-- progress logs for long-running cells
-- paper-ready markdown summaries
-
----
-
-### 6. Final Report
+Use it to reproduce the hyperparameter ablation results reported in:
 
 ```text
 eaglevision_ablation_report.md
 ```
 
-Use this report when writing the final paper section for:
+---
 
-- experimental setup
-- main quantitative results
-- ablation analysis
-- project justification
-- limitations
-- final claim wording
+### 6. Optional Local/CUDA Ablation Notebook
+
+```text
+eaglevision_hyperparameter_ablation_local_cuda_v3_*.ipynb
+```
+
+This is a local/CUDA variant of the ablation workflow. Use it when running the same style of experiments outside Kaggle on a local CUDA machine.
 
 ---
 
@@ -194,7 +229,7 @@ klein2111/scannet-2d
 
 ### Step 2: Enable GPU
 
-Use a GPU runtime when training or running ablations.
+Use a GPU runtime for training and ablations.
 
 Recommended Kaggle accelerator:
 
@@ -221,9 +256,9 @@ The notebooks are designed to install missing packages inside the Kaggle runtime
 
 ### Step 5: Run dataset discovery
 
-Before training, run the dataset discovery/preprocessing cells.
+Before training, run the dataset discovery and preprocessing cells.
 
-These cells inspect the Kaggle input directory and normalize the dataset paths so the training and evaluation code can use them consistently.
+These cells inspect the Kaggle input directory and normalize dataset paths so the training and evaluation code can use them consistently.
 
 ---
 
@@ -241,13 +276,14 @@ The core research question is:
 
 ## Method Summary
 
-EagleVision is based on the following idea:
+EagleVision follows this high-level pipeline:
 
 1. Start with a pretrained monocular depth model.
-2. Keep the pretrained backbone mostly frozen or lightly adapted.
+2. Use the pretrained model as a strong baseline.
 3. Add lightweight trainable adapter components.
 4. Train using metric depth supervision and geometric consistency losses.
-5. Evaluate whether the adapted model improves over the frozen baseline.
+5. Compare the adapted model against the frozen pretrained baseline.
+6. Use ablations to justify the final hyperparameter configuration.
 
 The method is designed to be computationally practical for a course research project while still testing a meaningful deep learning research hypothesis.
 
@@ -264,19 +300,19 @@ The main reported metrics are:
 | Depth L1 | Mean absolute depth error | Lower is better |
 | Reprojection Depth | Depth/geometric reprojection error | Lower is better |
 
-All reported comparisons use lower-is-better metrics.
+All primary metrics are lower-is-better.
 
 ---
 
 ## Main Ablation Result
 
-The ablation study evaluated **27 configurations**:
+The final ablation study in `kaggle-ablations.ipynb` evaluated **27 configurations**:
 
 - 1 frozen baseline
 - 1 default EagleVision configuration
 - 25 ablation variants
 
-The most important comparison is shown below.
+The key result is shown below.
 
 | Configuration | AbsRel ↓ | RMSE ↓ | Depth L1 ↓ | Reprojection Depth ↓ |
 |---|---:|---:|---:|---:|
