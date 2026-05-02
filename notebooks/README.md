@@ -4,8 +4,10 @@ This directory contains the Kaggle notebooks, ablation notebook, and final markd
 
 EagleVision studies whether a pretrained monocular depth model can be improved for RGB-D geometric adaptation through lightweight adapter training, direct depth supervision, and carefully weighted geometric consistency objectives.
 
-Main Training Notebook [/eaglevision2.ipynb]
+Main Training Notebook [eaglevision2.ipynb]
 ---
+
+
 
 ## Recommended Kaggle Dataset
 
