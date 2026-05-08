@@ -23,3 +23,4 @@ Notebook roles:
 
 - `kaggle_phase1_setup_train.ipynb`: clone repo, install deps, set up dataset, download checkpoint, generate configs, train, run baseline eval
 - `kaggle_phase1_eval_infer.ipynb`: clone repo, set up dataset, run baseline/adapted eval, compare metrics, run inference
+- `phase1_adapted_longrun/`: partner-added adapted-only 100-epoch Kaggle long-run experiment, selected checkpoint, and experiment notes
