@@ -18,6 +18,7 @@ EagleVision investigates whether a pretrained monocular depth model can be impro
 | `kaggle_phase1_setup_train.ipynb` | Initial setup and training notebook for Kaggle execution. |
 | `kaggle_phase1_eval_infer.ipynb` | Evaluation and inference notebook for baseline/adapted comparison. |
 | `kaggle_phase1_complete.ipynb` | Complete Phase 1 notebook with corrected preprocessing and backbone visualization. |
+| `phase1_adapted_longrun/` | Partner-added adapted-only 100-epoch Kaggle long-run experiment, selected checkpoint, and experiment notes. |
 
 ---
 
