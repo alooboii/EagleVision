@@ -90,7 +90,7 @@ This file summarizes:
 - limitations
 - recommended paper wording
 
-Use this file when writing the final paper/report section.
+We will use this file when writing the final paper/report section.
 
 ---
 
@@ -423,9 +423,7 @@ The strongest defensible project claim is:
 
 ---
 
-## Recommended Paper Wording
 
-Use this wording in the report or paper:
 
 > Under a fixed reduced-budget validation setting, EagleVision consistently improves over the frozen pretrained baseline. The best overall configuration, `lr_5e-5`, reduces AbsRel from `0.344097` to `0.284113`, RMSE from `0.851416` to `0.703733`, Depth L1 from `0.722799` to `0.580426`, and reprojection depth error from `0.691047` to `0.565430`. These results support the effectiveness of lightweight geometric adaptation. The ablation also shows that cycle-depth consistency must be weighted moderately, since excessive cycle-depth weighting degrades metric depth performance.
 
