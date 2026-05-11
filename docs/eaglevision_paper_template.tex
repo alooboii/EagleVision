@@ -20,6 +20,7 @@
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 \usepackage[accepted]{icml2021}
+\setcitestyle{numbers,square,comma,sort&compress}
 
 \begin{document}
 
@@ -37,21 +38,21 @@
 ]
 
 \begin{abstract}
-Modern monocular depth estimators are highly capable in single-view settings \cite{eigen2014depth,ranftl2022midas,yang2024depthanything,yang2024depthanythingv2}, but cross-view geometric consistency remains a practical gap in RGB-D pipelines that rely on camera motion and reprojection. We present \textbf{EagleVision}, a lightweight adaptation framework that keeps a standard pretrained Depth Anything V2 model \cite{yang2024depthanythingv2} frozen and learns only a compact residual adapter under a round-trip geometric objective. The key design is to correct, not replace, pretrained depth: the adapter predicts residual refinements, and consistency is enforced through explicit source$\rightarrow$target$\rightarrow$source warping. We train the final model for 100 epochs on the ScanNet domain \cite{dai2017scannet} and evaluate it against frozen Depth Anything V2 under aligned paired protocols, then study cross-model behavior under a multi-model evaluation setting on NYU/KITTI-style benchmarks \cite{silberman2012nyu,geiger2012kitti}. EagleVision improves core depth and geometry metrics while preserving a small trainable footprint, with remaining gaps mainly tied to sparse warping coverage and visibility holes. Project page and code: \href{https://github.com/<ORG>/<REPO>}{\texttt{[GitHub link placeholder]}}.
+Modern monocular depth estimators are strong in single-view prediction \cite{eigen2014depth,ranftl2022midas,yang2024depthanything,yang2024depthanythingv2}, but geometric consistency across nearby views remains a practical bottleneck in RGB-D pipelines. We present \textbf{EagleVision}, a lightweight adaptation framework that can wrap \emph{any} pretrained depth estimator with a compact residual adapter and optimize it using an explicit source$\rightarrow$target$\rightarrow$source geometric cycle. The method is parameter-efficient by construction: the large pretrained backbone is kept frozen, while only a small residual head is trained. For controlled experiments, this paper instantiates EagleVision with a pretrained Depth Anything V2-Small metric model \cite{yang2024depthanythingv2,dai2017scannet}. Beyond improving geometric consistency, our optimization also improves depth-estimation-specific quantitative metrics (AbsRel, RMSE, Depth L1, and $\delta_1$), showing that geometry-driven adaptation can directly benefit depth accuracy. Project page and code: \href{https://github.com/alooboii/EagleVision}{\texttt{[EagleVision]}}.
 \end{abstract}
 
 \section{Introduction}
-Monocular depth estimation has progressed rapidly through large-scale pretraining and transformer backbones \cite{dosovitskiy2021vit,oquab2023dinov2,ranftl2021dpt,ranftl2022midas,yang2024depthanything,yang2024depthanythingv2}, with Depth Anything V2 \cite{yang2024depthanythingv2} representing a strong and widely used baseline. At the same time, many real pipelines consume depth in \emph{multi-view} contexts rather than single-image isolation. In indoor RGB-D settings, predicted depth is repeatedly used for reprojection, geometric warping, and view-to-view consistency checks. This creates a recurring gap: a model can be strong in frame-wise depth quality yet still be weak in geometric agreement across nearby camera poses.
+Monocular depth estimation has advanced rapidly through large-scale pretraining, transformer backbones, and robust dense-prediction heads \cite{dosovitskiy2021vit,oquab2023dinov2,ranftl2021dpt,ranftl2022midas,yang2024depthanything,yang2024depthanythingv2}. At the same time, many deployed systems consume depth inside \emph{multi-view} geometric pipelines rather than in isolated single-image evaluation. In indoor RGB-D settings, predicted depth is repeatedly used by reprojection, visibility reasoning, and cross-view consistency checks. This creates a practical gap: a model can be strong in frame-wise depth quality yet still underperform when the same depth must remain coherent under view transformation.
 
-Recent work in depth adaptation and geometry-aware training has explored full fine-tuning, self-supervised consistency objectives, and multi-term reconstruction losses \cite{godard2019monodepth2,ranftl2022midas,bhat2023zoedepth}. These approaches are effective but often expensive or unstable when compute is constrained, and they may overwrite useful pretrained priors. Our motivation is therefore practical: keep the pretrained model intact, and learn only the smallest correction needed to satisfy geometric consistency in the target domain.
+Existing directions include full-model fine-tuning, self-supervised geometric consistency, and multi-term reconstruction objectives \cite{godard2019monodepth2,ranftl2022midas,bhat2023zoedepth}. While effective, these strategies can be expensive and can overwrite useful pretrained priors. EagleVision addresses this by separating \emph{capacity} from \emph{adaptation}: retain a strong pretrained estimator, freeze it, and learn only a small residual correction under a geometry-aware objective.
 
-EagleVision is designed around that motivation. We treat Depth Anything V2 \cite{yang2024depthanythingv2} as a standard off-the-shelf backbone, freeze it, and attach a lightweight residual head in the spirit of parameter-efficient adaptation \cite{houlsby2019adapters}. The residual head is trained under an explicit round-trip geometric objective so that corrected depth is not only accurate in target view space, but also coherent after backward reprojection to source view space. This paper focuses on the final 100-epoch ScanNet-trained model \cite{dai2017scannet} and its comparison against frozen Depth Anything V2 under controlled evaluation protocols.
+The key method is backbone-agnostic. EagleVision treats the pretrained estimator as a pluggable module and optimizes a lightweight adapter around it. This means the approach is not tied to a single depth family in principle; for controlled empirical evidence, the main adaptation experiments in this paper instantiate the method on a pretrained Depth Anything V2-Small metric backbone \cite{yang2024depthanythingv2}.
 
 \textbf{Contributions.}
 \begin{itemize}
-  \item A lightweight residual adaptation strategy for monocular depth that preserves a frozen standard backbone.
+  \item A backbone-agnostic geometric adaptation framework that wraps pretrained monocular depth estimators with a lightweight residual adapter while preserving frozen backbone priors.
   \item A geometry-grounded round-trip training objective that couples forward and backward warping consistency.
-  \item A complete evaluation protocol including ablation-based hyperparameter selection, ScanNet-domain quantitative comparison against frozen Depth Anything V2, and multi-model cross-dataset benchmarking.
+  \item A reproducible evaluation protocol showing that the proposed optimization improves geometric consistency and also improves depth-estimation-specific quantitative metrics.
 \end{itemize}
 
 \section{Methodology}
@@ -247,7 +248,7 @@ EagleVision has three functional components: (1) a frozen pretrained depth backb
 \end{figure*}
 
 \paragraph{Terminology and Scope.}
-We use \emph{backbone} to mean the standard pretrained monocular depth model (Depth Anything V2 \cite{yang2024depthanythingv2}), \emph{adapter} to mean the lightweight trainable residual head, and \emph{warp} to mean geometry-based projection between camera views using depth and pose under standard multi-view projective geometry \cite{hartley2003multiple}. A \emph{round-trip cycle} denotes source$\rightarrow$target$\rightarrow$source warping. In this paper, the architectural novelty is not a new backbone; the contribution is the adaptation objective and training strategy around a frozen standard backbone.
+We use \emph{backbone} to mean a pretrained monocular depth estimator, \emph{adapter} to mean the lightweight trainable residual head, and \emph{warp} to mean geometry-based projection between camera views using depth and pose under standard multi-view projective geometry \cite{hartley2003multiple}. A \emph{round-trip cycle} denotes source$\rightarrow$target$\rightarrow$source warping. The methodological contribution is the optimization strategy around a frozen pretrained backbone, not a new backbone architecture.
 
 \subsection{Problem Formulation}
 Each training sample contains a source tuple $(I_s, D_s^{gt}, K_s, T_s)$ and a target tuple $(I_t, D_t^{gt}, K_t, T_t)$. Here $I$ is RGB, $D^{gt}$ is metric depth, $K$ is intrinsics, and $T$ is pose in the standard pinhole-camera formulation \cite{hartley2003multiple}. Relative transforms are
@@ -277,7 +278,7 @@ I_{s\rightarrow t}^{warp}, \quad D_{s\rightarrow t}^{warp}, \quad M_t.
 \end{equation}
 
 \subsection{Residual Depth Adaptation}
-Let $f_{\theta_0}$ be frozen Depth Anything V2 \cite{yang2024depthanythingv2} and $g_{\phi}$ be the trainable adapter. The first pass predicts
+Let $f_{\theta_0}$ be a frozen pretrained depth estimator and $g_{\phi}$ be the trainable adapter. The first pass predicts
 \begin{equation}
 D_t^{base}=f_{\theta_0}(I_{s\rightarrow t}^{warp}),
 \end{equation}
@@ -327,7 +328,7 @@ with
 
 \section{Experiments and Results}
 \subsection{Ablation Protocol and Selected Hyperparameters}
-We performed ablations to \emph{select} the final training setup rather than to position ablation itself as a standalone contribution. The search covered loss-weight balance, optimizer learning rate, and adapter capacity. Table~\ref{tab:hparam_select} reports the selected configuration used for the final 100-epoch model.
+Ablations are used here as a \emph{selection mechanism} for the final training setup, not as a standalone claim. The search covers loss-weight balance, learning rate, and adapter capacity. Table~\ref{tab:hparam_select} reports the selected configuration.
 
 \begin{table}[t]
 \caption{Hyperparameter selection outcome from ablation protocol.}
@@ -345,19 +346,40 @@ Learning rate & $5\times 10^{-5}$ \\
 Weight decay & $10^{-4}$ \\
 Loss weights $(\lambda_{trgb},\lambda_{crgb},\lambda_{cdep},\lambda_{tdep})$ & $(1.0,\,1.0,\,0.35,\,0.35)$ \\
 Batch size & 1 \\
-Epochs & 100 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Hyperparameter roles.}
-Learning rate controls how quickly the adapter residuals shift from pretrained behavior. Weight decay regularizes adapter filters to avoid overfitting sparse geometric artifacts. Adapter width determines correction capacity. The cycle-depth and target-depth weights control how strongly metric depth supervision and round-trip consistency compete or cooperate during optimization.
+Learning rate controls how quickly residual corrections move away from pretrained behavior. Weight decay regularizes adapter filters against overfitting to sparse geometric artifacts. Adapter width controls correction capacity. The cycle-depth and target-depth weights determine the balance between direct metric-depth supervision and round-trip consistency pressure.
 
-\subsection{Final Training Configuration}
-Table~\ref{tab:setup} summarizes the full final training and pairing protocol used for the reported ScanNet-domain model.
+\subsection{Instantiation and Parameter Budget}
+EagleVision is backbone-agnostic by design, but this paper instantiates the adapted model with \textbf{Depth Anything V2-Small metric} (\texttt{vits}, Hypersim profile) as the frozen backbone \cite{yang2024depthanythingv2}. This keeps the experiment concrete while preserving the general method statement.
 
 \begin{table}[t]
-\caption{Final EagleVision training configuration on ScanNet domain.}
+\caption{Parameter budget of the instantiated adapted model used in this paper.}
+\label{tab:param_budget}
+\centering
+\small
+\begin{tabular}{L{0.36\columnwidth}L{0.24\columnwidth}L{0.28\columnwidth}}
+\toprule
+Component & Parameters & Trainable? \\
+\midrule
+Pretrained backbone (DA2-Small metric) & $24.8$M & No (frozen) \\
+Residual adapter head ($g_{\phi}$, 32 ch.) & $10{,}721$ & Yes \\
+\midrule
+Trainable fraction of full model & $0.043\%$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The adapter parameter count ($10{,}721$) is computed directly from the implemented three-layer residual head, while the DA2-Small backbone scale follows the official model specification \cite{yang2024depthanythingv2}. This table highlights the practical point: a very large pretrained model is retained, and only a tiny fraction is optimized.
+
+\subsection{Final Training Configuration}
+Table~\ref{tab:setup} summarizes the full training and pairing protocol used for the reported ScanNet-domain adapted model.
+
+\begin{table}[t]
+\caption{Final EagleVision training configuration on the ScanNet domain.}
 \label{tab:setup}
 \centering
 \small
@@ -365,36 +387,34 @@ Table~\ref{tab:setup} summarizes the full final training and pairing protocol us
 \toprule
 Component & Value \\
 \midrule
-Backbone & Standard Depth Anything V2 (\texttt{metric}, \texttt{vits}, \texttt{hypersim}) \\
+Backbone (instantiated) & Depth Anything V2-Small metric (\texttt{vits}, \texttt{hypersim}) \\
 Backbone optimization & Frozen \\
 Trainable component & Residual adapter only \\
 Optimizer & AdamW \\
 Learning rate & $5\times10^{-5}$ \\
 Weight decay & $10^{-4}$ \\
 Batch size & 1 \\
-Training length & 100 epochs \\
 Loss weights & $(1.0,\,1.0,\,0.35,\,0.35)$ \\
 Pair sampling window & Translation $[0.02,0.30]$m, rotation $[0.8^\circ,8^\circ]$, max gap 10 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The optimizer is AdamW \cite{loshchilov2019adamw}, chosen for stable adaptation under a small trainable head while keeping the pretrained backbone fixed.
+The optimizer is AdamW \cite{loshchilov2019adamw}, selected for stable adapter training while keeping the backbone fixed.
 
 \subsection{Quantitative Metrics}
-We evaluate both geometric depth quality and reconstruction behavior:
+Because the contribution targets depth improvement under geometric supervision, primary reporting focuses on depth-specific and geometry-consistency metrics:
 \begin{itemize}
-  \item \textbf{AbsRel} ($\downarrow$): $\frac{1}{N}\sum_i \frac{|d_i-\hat{d}_i|}{d_i}$, relative depth error \cite{eigen2014depth}.
-  \item \textbf{RMSE} ($\downarrow$): $\sqrt{\frac{1}{N}\sum_i(d_i-\hat{d}_i)^2}$, large-error-sensitive depth metric \cite{eigen2014depth}.
+  \item \textbf{AbsRel} ($\downarrow$): $\frac{1}{N}\sum_i \frac{|d_i-\hat{d}_i|}{d_i}$ \cite{eigen2014depth}.
+  \item \textbf{RMSE} ($\downarrow$): $\sqrt{\frac{1}{N}\sum_i(d_i-\hat{d}_i)^2}$ \cite{eigen2014depth}.
   \item \textbf{Depth L1} ($\downarrow$): mean absolute metric-depth error.
-  \item \textbf{$\delta_1$} ($\uparrow$): fraction of pixels with $\max(\hat{d}_i/d_i, d_i/\hat{d}_i) < 1.25$ \cite{eigen2014depth}.
+  \item \textbf{$\delta_1$} ($\uparrow$): fraction where $\max(\hat{d}_i/d_i, d_i/\hat{d}_i) < 1.25$ \cite{eigen2014depth}.
   \item \textbf{Reprojection Depth L1} ($\downarrow$): depth consistency after geometric round-trip.
-  \item \textbf{PSNR/SSIM} ($\uparrow$): image reconstruction quality; reported both on full frame and valid overlap where relevant (SSIM from \cite{wang2004ssim}).
-  \item \textbf{Median-scaled metrics} (\texttt{ms-*}): depth comparison after scale alignment for relative-depth fairness.
 \end{itemize}
+We also report PSNR/SSIM reconstruction indicators for geometric diagnostics (SSIM \cite{wang2004ssim}), but depth metrics are the primary success criteria for this phase.
 
-\subsection{EagleVision vs Depth Anything V2 on ScanNet Domain}
-The main controlled comparison is between the final 100-epoch EagleVision model and frozen Depth Anything V2 \cite{yang2024depthanythingv2} on aligned source-target pairs from the ScanNet domain \cite{dai2017scannet}. Table~\ref{tab:paired_eval} reports this paired result.
+\subsection{EagleVision vs Frozen Pretrained Backbone on ScanNet}
+The main controlled comparison evaluates the adapted model against its own frozen pretrained source backbone on aligned source-target pairs from ScanNet \cite{dai2017scannet}. For this instantiated study, the adapted backbone is DA2-Small metric \cite{yang2024depthanythingv2}.
 
 \begin{table}[t]
 \caption{ScanNet-domain paired evaluation on 433 aligned source-target pairs.}
@@ -406,15 +426,15 @@ The main controlled comparison is between the final 100-epoch EagleVision model 
 \toprule
 Method & AbsRel$\downarrow$ & RMSE$\downarrow$ & $\delta_1\uparrow$ & PSNR$_{full}\uparrow$ & SSIM$_{valid}\uparrow$ & Reproj L1$\downarrow$ \\
 \midrule
-EagleVision (100-epoch) & 0.344948 & 2.187455 & 0.395220 & 8.030335 & 0.748439 & 2.020791 \\
-Depth Anything V2 (frozen) & 0.461546 & 2.371236 & 0.312454 & 8.472656 & 0.704900 & 2.208435 \\
+EagleVision (adapted DA2-Small) & 0.344948 & 2.187455 & 0.395220 & 8.030335 & 0.748439 & 2.020791 \\
+Depth Anything V2-Small (frozen) & 0.461546 & 2.371236 & 0.312454 & 8.472656 & 0.704900 & 2.208435 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
 \subsection{Multi-Model Evaluation on NYU/KITTI Protocol}
-Beyond the in-domain ScanNet comparison, we also evaluate a broader multi-model setting following the same evaluation protocol family used for NYU/KITTI-style depth studies \cite{silberman2012nyu,geiger2012kitti,eigen2014depth}. The compared baselines span Depth Anything V2 \cite{yang2024depthanythingv2}, Depth Anything V1 \cite{yang2024depthanything}, DPT \cite{ranftl2021dpt}, and MiDaS-style variants \cite{ranftl2022midas}. Table~\ref{tab:nyu_multimodel} reports the NYU portion of this comparison using the current available quantitative runs.
+Beyond the in-domain ScanNet comparison, we evaluate a broader multi-model benchmark aligned with NYU/KITTI-style protocol families \cite{silberman2012nyu,geiger2012kitti,eigen2014depth}. In this table, \emph{EagleVision (Ours)} specifically denotes the DA2-Small-instantiated adapted model, while the remaining rows are frozen alternative pretrained estimators (Depth Anything V1/V2, DPT, MiDaS) \cite{yang2024depthanything,yang2024depthanythingv2,ranftl2021dpt,ranftl2022midas}.
 
 \begin{table}[t]
 \caption{Multi-model NYU evaluation summary (150 validation samples).}
@@ -426,7 +446,7 @@ Beyond the in-domain ScanNet comparison, we also evaluate a broader multi-model 
 \toprule
 Model & AbsRel$\downarrow$ & RMSE$\downarrow$ & $\delta_1\uparrow$ & ms-AbsRel$\downarrow$ & ms-RMSE$\downarrow$ & ms-$\delta_1\uparrow$ \\
 \midrule
-\textbf{EagleVision (Ours)} & \textbf{0.371609} & \textbf{1.582170} & \textbf{0.288277} & \textbf{0.305897} & \textbf{1.027983} & \textbf{0.535097} \\
+\textbf{EagleVision (Ours, adapted DA2-Small)} & \textbf{0.371609} & \textbf{1.582170} & \textbf{0.288277} & \textbf{0.305897} & \textbf{1.027983} & \textbf{0.535097} \\
 depth\_anything\_v2\_small & 0.981247 & 2.745554 & 0.145013 & 1.384951 & 4.004053 & 0.196486 \\
 depth\_anything\_v2\_base & 1.976700 & 4.642966 & 0.116715 & 1.455683 & 4.240001 & 0.195938 \\
 depth\_anything\_v1\_small & 3.515683 & 7.559641 & 0.088617 & 1.510437 & 4.302704 & 0.192117 \\
@@ -438,19 +458,39 @@ depth\_anything\_v2\_large & 89.956905 & 199.402634 & 0.005372 & 1.647548 & 4.87
 }
 \end{table}
 
-\subsection{Qualitative Results}
-Qualitative comparisons were generated alongside quantitative runs and include: RGB input, warped intermediate views, baseline depth, adapted depth, and residual behavior maps. In general, the qualitative trend matches the metrics: depth structure improves most clearly at object boundaries and mid-range geometry, while render completeness is constrained by hole coverage in forward splatting.
-
 \section{Discussion}
-The final model demonstrates that a frozen standard Depth Anything V2 backbone can be materially improved by lightweight residual adaptation under geometric round-trip supervision. On the ScanNet-domain paired protocol, EagleVision reduces AbsRel from 0.461546 to 0.344948, a \textbf{25.26\%} relative reduction. RMSE decreases from 2.371236 to 2.187455 (\textbf{7.75\%} reduction), and reprojection depth L1 decreases from 2.208435 to 2.020791 (\textbf{8.50\%} reduction). Threshold accuracy also improves: $\delta_1$ rises from 0.312454 to 0.395220 (absolute +0.082766, relative +\textbf{26.49\%}).
+The central empirical finding is that a geometric adaptation objective, applied to a frozen pretrained estimator through a tiny residual head, can improve depth quality in a measurable way. On the ScanNet paired protocol, EagleVision reduces AbsRel from 0.461546 to 0.344948 (\textbf{25.26\%} relative reduction), RMSE from 2.371236 to 2.187455 (\textbf{7.75\%} reduction), and reprojection depth L1 from 2.208435 to 2.020791 (\textbf{8.50\%} reduction). Threshold accuracy also improves, with $\delta_1$ rising from 0.312454 to 0.395220 (relative +\textbf{26.49\%}).
 
-These changes are meaningful for geometric applications because they improve the depth map itself and its cross-view consistency simultaneously. At the same time, full-frame PSNR does not improve in the same proportion, which is expected in sparse forward-warp pipelines where visibility holes can dominate appearance-level metrics. This split between geometry gains and rendering completeness is an important interpretability point rather than a contradiction.
+These results matter because EagleVision is not a heavyweight replacement model; it is an optimization layer around a large frozen backbone. The positive depth-metric gains show that the proposed geometric objective does not only help consistency signals, but also directly improves depth-estimation-specific quantitative performance.
 
 \section{Limitations}
-First, the current formulation depends on explicit splat-based warping, and splatting naturally introduces holes and sensitivity to visibility boundaries. Second, although the adaptation strategy is backbone-agnostic by design, this paper reports the finalized model instantiated with Depth Anything V2 \cite{yang2024depthanythingv2}; broader backbone families (for example DPT \cite{ranftl2021dpt}, MiDaS \cite{ranftl2022midas}, and ZoeDepth \cite{bhat2023zoedepth}) should be systematically verified under identical protocols. Third, cross-dataset generalization still depends on camera intrinsics consistency, pose quality, and depth-scale conventions, particularly when comparing NYU/KITTI-style evaluations \cite{silberman2012nyu,geiger2012kitti}. Finally, as with most geometry-supervised adaptation methods, the quality of pair selection (motion magnitude, overlap, and scene content) can affect both optimization stability and metric outcomes.
+Although EagleVision improves depth predictions over the frozen pretrained baseline, the present work has clear scope limits.
+
+First, this study focuses on depth-map adaptation as a \emph{prior} stage and does not evaluate a full downstream novel-view-synthesis or reconstruction system. Accordingly, we do not claim downstream-task improvements in this paper.
+
+Second, the current evidence is based on relatively limited ScanNet-domain training/validation coverage. Results should be interpreted as controlled validation evidence rather than full-domain generalization across all indoor settings.
+
+Third, while EagleVision is backbone-agnostic in formulation, adaptation training here is only instantiated on a pretrained DA2-Small backbone. We do not yet train the same objective across multiple pretrained backbone families under matched protocols.
+
+Fourth, we also do not yet report multi-dataset adaptation training over one fixed pretrained backbone. Cross-dataset robustness of the adapted prior therefore remains an open question.
+
+Fifth, we do not yet evaluate whether adapted depth gains transfer to concrete downstream tasks. This is a key next validation step for the framework.
+
+\section{Future Improvements}
+Several next steps can substantially strengthen the method while preserving its parameter-efficient core.
+
+(1) \textbf{Depth-focused supervision}: extend the objective with additional depth-oriented terms such as log-depth, scale-invariant log-depth, depth-gradient, and normal-consistency losses, while keeping RGB-cycle terms auxiliary.
+
+(2) \textbf{Better loss balancing}: further study the weighting between RGB reconstruction and depth-specific objectives, including staged schedules that prioritize depth quality early and consistency terms later.
+
+(3) \textbf{Broader adaptation evidence}: train across multiple datasets on the same pretrained backbone to test domain robustness of the learned residual prior.
+
+(4) \textbf{Multi-backbone adaptation}: run matched adaptation training on multiple pretrained estimator families (for example DA2, DPT, MiDaS-style setups) to rigorously validate backbone-agnostic behavior.
+
+(5) \textbf{Downstream validation}: measure transfer to tasks that consume depth priors, including view-synthesis and geometry-heavy pipelines.
 
 \section{Conclusion}
-We presented EagleVision as a practical geometric adaptation strategy for monocular depth: keep a standard pretrained backbone frozen, learn a lightweight residual correction, and train under explicit round-trip geometric consistency. The final 100-epoch ScanNet-domain model improves core depth and reprojection metrics over frozen Depth Anything V2 while maintaining a small trainable parameter budget. The method therefore offers a strong efficiency-accuracy trade-off for RGB-D geometric pipelines, with the main remaining challenge being robust handling of sparse visibility and hole-induced rendering artifacts.
+EagleVision provides a practical geometric adaptation strategy for pretrained monocular depth estimators: keep the large backbone frozen, train a small residual adapter, and optimize with explicit round-trip consistency. In the reported DA2-Small instantiation, this optimization improves both geometry consistency and core depth-estimation metrics while updating only a tiny fraction of parameters. The next stage is clear: broaden backbone and dataset coverage and validate transfer to downstream tasks.
 
 \bibliography{eaglevision_refs}
 \bibliographystyle{icml2021}
