@@ -4,8 +4,15 @@ Small written experiment summaries live here.
 
 ## Current Reports
 
-- `100ep_vs_Base.md`: comparison against the baseline after the 100-epoch run.
-- `post_ablation_training_100ep.md`: post-ablation training summary.
+| Report | Purpose |
+|---|---|
+| `100ep_vs_Base.md` | Comparison against the frozen baseline after the 100-epoch adapted run. |
+| `post_ablation_training_100ep.md` | Post-ablation 100-epoch training summary. |
+
+## Related Reports Outside This Folder
+
+- `results/notebooks/README.md`: complete evaluation report rendered from `eval-complete-final.ipynb`.
+- `notebooks/ablations/eaglevision_ablation_report.md`: final ablation report.
 
 ## Rule
 

@@ -1,18 +1,36 @@
 # Evaluation Notebooks
 
-This folder contains notebooks for model comparison, metric inspection, and qualitative evaluation.
+This folder contains notebooks for model comparison, metric inspection, qualitative evaluation, and benchmark-style checks.
 
 ## Files
 
-- `eval-complete.ipynb`: complete evaluation workflow.
-- `eval-suite.ipynb`: evaluation suite notebook.
-- `eval_complete/`: final evaluation notebook folder.
-- `multi_model_multi_dataset_depth_benchmark.ipynb`: multi-model/multi-dataset comparison.
-- `quick-check-multi-dataset.ipynb`: quick multi-dataset sanity check.
-- `quick_adapted_depth_preview.ipynb`: adapted depth preview notebook.
+| File | Purpose |
+|---|---|
+| `eval-complete.ipynb` | Complete evaluation workflow notebook. |
+| `eval-suite.ipynb` | Evaluation suite notebook. |
+| `eval_complete/eval-complete-final.ipynb` | Original final evaluation dashboard notebook. |
+| `multi_model_multi_dataset_depth_benchmark.ipynb` | Multi-model, multi-dataset depth benchmark. |
+| `quick-check-multi-dataset.ipynb` | Quick multi-dataset sanity check. |
+| `quick_adapted_depth_preview.ipynb` | Qualitative adapted depth preview. |
+
+## Rendered Evaluation Report
+
+The GitHub-rendered complete evaluation report is in:
+
+```text
+results/notebooks/README.md
+```
+
+The copied notebook beside that report is:
+
+```text
+results/notebooks/eval-complete-final.ipynb
+```
+
+Keep the original notebook here for evaluation workflow history, and use the copied notebook in `results/notebooks/` when reviewing the final reported result.
 
 ## Guidelines
 
 - Keep comparisons explicit about dataset split, checkpoint, and config.
-- Move final written summaries to `results/reports/`.
-- Keep heavy generated images and arrays out of git unless they are curated paper artifacts.
+- Move final written summaries to `results/` unless they belong beside a specific notebook.
+- Keep heavy generated images and arrays out of git unless they are curated report artifacts.
