@@ -117,6 +117,7 @@ These are the main notebooks a reader should inspect first.
 | [notebooks/evaluation/eval-complete.ipynb](notebooks/evaluation/eval-complete.ipynb) | Complete evaluation workflow notebook. |
 | [notebooks/evaluation/eval-suite.ipynb](notebooks/evaluation/eval-suite.ipynb) | Evaluation suite notebook. |
 | [notebooks/evaluation/eval_complete/eval-complete-final.ipynb](notebooks/evaluation/eval_complete/eval-complete-final.ipynb) | Final evaluation notebook from the complete evaluation folder. |
+| [results/notebooks/eval-complete-final.ipynb](results/notebooks/eval-complete-final.ipynb) | Copied final evaluation notebook placed beside the rendered evaluation report. |
 | [notebooks/evaluation/multi_model_multi_dataset_depth_benchmark.ipynb](notebooks/evaluation/multi_model_multi_dataset_depth_benchmark.ipynb) | Multi-model, multi-dataset depth benchmark notebook. |
 | [notebooks/evaluation/quick-check-multi-dataset.ipynb](notebooks/evaluation/quick-check-multi-dataset.ipynb) | Quick multi-dataset sanity check notebook. |
 | [notebooks/evaluation/quick_adapted_depth_preview.ipynb](notebooks/evaluation/quick_adapted_depth_preview.ipynb) | Quick qualitative preview of adapted depth predictions. |
@@ -127,6 +128,7 @@ Archived root-level notebooks are preserved under [notebooks/archive/root-notebo
 ## Key Reports
 
 - [notebooks/ablations/eaglevision_ablation_report.md](notebooks/ablations/eaglevision_ablation_report.md): final ablation report and project justification.
+- [results/notebooks/README.md](results/notebooks/README.md): complete evaluation report generated from `eval-complete-final.ipynb`.
 - [results/reports/100ep_vs_Base.md](results/reports/100ep_vs_Base.md): 100-epoch adapted run compared with the baseline.
 - [results/reports/post_ablation_training_100ep.md](results/reports/post_ablation_training_100ep.md): post-ablation 100-epoch training summary.
 
