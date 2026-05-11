@@ -23,9 +23,9 @@ Practical caveat:
 
 1. Create a Kaggle notebook with internet enabled.
 2. Add `klein2111/scannet-2d` to notebook inputs.
-3. Run `notebooks/kaggle_phase1_setup_train.ipynb` for setup and training.
+3. Run `notebooks/kaggle/kaggle_phase1_setup_train.ipynb` for setup and training.
 4. Export training outputs as a Kaggle dataset if you want a separate evaluation notebook.
-5. Run `notebooks/kaggle_phase1_eval_infer.ipynb` for evaluation and inference.
+5. Run `notebooks/kaggle/kaggle_phase1_eval_infer.ipynb` for evaluation and inference.
 
 ## Hour-Scale Runtime Profile
 

@@ -7,6 +7,10 @@ Relevant paths:
 - `configs/`: train, eval, data, and model YAML files.
 - `scripts/`: thin wrappers for common CLI entrypoints.
 - `tests/`: small fast tests for geometry, fusion, and pairing assumptions.
+- `notebooks/ablations/`: ablation notebooks and the final ablation report.
+- `notebooks/kaggle/`: Kaggle setup, train, evaluation, and complete workflow notebooks.
+- `notebooks/evaluation/`: evaluation and comparison notebooks.
+- `results/reports/`: small written experiment summaries.
 
 Common commands:
 
@@ -21,6 +25,13 @@ The repository is organized so later phases can add learned fusion, source-depth
 
 Kaggle-facing artifacts:
 
-- `notebooks/kaggle_phase1_setup_train.ipynb`
-- `notebooks/kaggle_phase1_eval_infer.ipynb`
+- `notebooks/kaggle/kaggle_phase1_setup_train.ipynb`
+- `notebooks/kaggle/kaggle_phase1_eval_infer.ipynb`
+- `notebooks/kaggle/kaggle_phase1_complete.ipynb`
 - `docs/kaggle_submission.md`
+
+Ablation artifacts:
+
+- `notebooks/ablations/kaggle-ablations.ipynb`
+- `notebooks/ablations/eaglevision_hyperparameter_ablation_local_cuda_v3_unicode_single_progress.ipynb`
+- `notebooks/ablations/eaglevision_ablation_report.md`

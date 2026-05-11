@@ -1,46 +1,54 @@
 # EagleVision
 
-EagleVision is a modular research repository for improving a monocular depth estimator by training it inside a geometry-first round-trip novel-view-synthesis loop on indoor scenes. In Phase 1, the main model being improved is the depth estimator, not a learned renderer. The geometry stack provides explicit supervision and evaluation for geometric usefulness.
+EagleVision is a research codebase for improving monocular depth estimation through lightweight geometric adaptation. The project adapts a pretrained Depth Anything V2-style depth estimator inside a geometry-first RGB-D round-trip novel-view-synthesis workflow for indoor scenes.
 
-The repository preserves the existing Depth Anything V2 baseline under `baseline/depth_anything_v2` as a vendor-style dependency. New work lives under `src/eaglevision`, with configs, scripts, tests, and docs organized around a clean Phase 1 training and evaluation workflow.
+The current repository is organized around Phase 1: keep the pretrained depth model mostly frozen, train a lightweight residual adapter, and evaluate whether the adapted model improves direct depth quality and geometric usefulness.
 
-## Phase 1 Focus
-
-- load ScanNet-style paired indoor views with controlled camera motion
-- render nearby target views with explicit RGB-D geometry
-- adapt a mostly frozen Depth Anything V2 model with a lightweight residual head
-- fuse warped and predicted target depth with simple visibility-based hole filling
-- reconstruct the source view by backward warping
-- train with round-trip rendering and depth anchoring losses
-- evaluate both geometric usefulness and direct depth quality
-
-## Repository Layout
+## What This Repository Contains
 
 ```text
-baseline/depth_anything_v2     Vendor baseline kept intact
-configs/                       Data, model, train, and eval YAMLs
-docs/                          Architecture, scope, training, and experiment notes
-scripts/                       Thin command wrappers
-src/eaglevision/               Phase 1 implementation
-tests/                         Fast geometry and interface tests
+baseline/       Vendored Depth Anything V2 baseline wrapper
+configs/        YAML configs for data, model, training, and evaluation
+docs/           Project design notes, experiment notes, and paper assets
+notebooks/      Kaggle, ablation, evaluation, and archived research notebooks
+outputs/        Local generated outputs only; ignored by git
+results/        Small reports and result notebooks
+scripts/        Thin command wrappers around package CLIs
+src/            EagleVision Python package
+tests/          Fast CPU-friendly unit tests
 ```
 
-## Install
+## Phase 1 Scope
+
+Phase 1 focuses on:
+
+- loading ScanNet-style paired indoor RGB-D views
+- sampling nearby camera pairs with controlled translation and rotation
+- rendering target views using explicit RGB-D geometry
+- adapting a pretrained depth model with a lightweight residual head
+- fusing warped and predicted depth with visibility-aware filling
+- training with depth anchoring and round-trip geometric losses
+- comparing adapted depth against the frozen pretrained baseline
+
+See [docs/phase1_scope.md](docs/phase1_scope.md), [docs/architecture.md](docs/architecture.md), and [docs/training_plan.md](docs/training_plan.md) for the detailed design.
+
+## Installation
+
+Use Python 3.11 or 3.12.
 
 ```bash
-pip install -e .[dev]
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
-## Baseline CLI
-
-The original baseline remains available:
+Run the fast test suite:
 
 ```bash
-python -m baseline.depth_anything_v2 download
-python -m baseline.depth_anything_v2 infer --input <image-or-folder> --output-dir outputs/baseline
+pytest
 ```
 
-## Phase 1 CLI
+## Main Commands
 
 Train:
 
@@ -55,7 +63,7 @@ python -m eaglevision.cli.eval --config configs/eval/default.yaml
 python -m eaglevision.cli.eval --config configs/eval/default.yaml --baseline-only
 ```
 
-Fast-turn (roughly hour-scale) profile:
+Fast-turn profile:
 
 ```bash
 python -m eaglevision.cli.train --config configs/train/phase1_hourly.yaml
@@ -63,21 +71,13 @@ python -m eaglevision.cli.eval --config configs/eval/hourly.yaml --baseline-only
 python -m eaglevision.cli.eval --config configs/eval/hourly.yaml --checkpoint <ckpt.pt>
 ```
 
-The hourly profile bounds runtime with:
-
-- lower resolution (`160x224`)
-- smaller model (`vits`)
-- frame subsampling (`frame_stride`)
-- per-scene frame/pair caps (`max_frames_per_scene`, `max_pairs_per_scene`)
-- capped training/eval work (`max_steps_per_epoch`, `eval.max_batches`)
-
 Single-image depth inference:
 
 ```bash
 python -m eaglevision.cli.infer_depth --input image.jpg --output outputs/depth.png
 ```
 
-Geometric render from RGB-D:
+Novel-view render from RGB-D:
 
 ```bash
 python -m eaglevision.cli.render_novel_view \
@@ -88,35 +88,74 @@ python -m eaglevision.cli.render_novel_view \
   --output outputs/novel_view.png
 ```
 
-## Data Assumptions
+The same commands are exposed as console scripts after installation:
 
-Phase 1 expects ScanNet-style scene folders with `color/`, `depth/`, and `pose/` subdirectories. Pairing thresholds are config-driven and default to small reliable viewpoint changes:
+```bash
+eaglevision-train
+eaglevision-eval
+eaglevision-compare
+eaglevision-infer-depth
+eaglevision-render
+eaglevision-demo
+```
+
+## Data
+
+Phase 1 expects ScanNet-style scene folders with:
+
+```text
+scene_id/
+  color/
+  depth/
+  pose/
+```
+
+Default pairing thresholds are conservative:
 
 - max translation: `0.30 m`
 - max rotation: `10 deg`
-- avoid near-identical views with minimum motion thresholds
+- minimum motion thresholds to avoid near-identical pairs
 
-See [docs/repository_guide.md](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/repository_guide.md) and [src/eaglevision/data/README.md](/C:/Users/Omore/OneDrive/Desktop/EagleVision/src/eaglevision/data/README.md).
+Data should stay outside git. Use local `data/` or Kaggle inputs, then point configs at the dataset root. See [src/eaglevision/data/README.md](src/eaglevision/data/README.md) and [docs/kaggle_submission.md](docs/kaggle_submission.md).
 
-## Documentation
+## Notebooks And Reports
 
-- [Architecture](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/architecture.md)
-- [Training Plan](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/training_plan.md)
-- [Experiments](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/experiments.md)
-- [Repository Guide](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/repository_guide.md)
-- [Phase 1 Scope](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/phase1_scope.md)
-- [Kaggle Submission Guide](/C:/Users/Omore/OneDrive/Desktop/EagleVision/docs/kaggle_submission.md)
+Notebook folders are intentionally separated by purpose:
 
-## Kaggle
+- [notebooks/ablations](notebooks/ablations): final ablation notebooks and the ablation report
+- [notebooks/kaggle](notebooks/kaggle): Kaggle setup, training, evaluation, and complete Phase 1 notebooks
+- [notebooks/evaluation](notebooks/evaluation): evaluation and comparison notebooks
+- [notebooks/experiments](notebooks/experiments): current exploratory training notebooks
+- [notebooks/archive](notebooks/archive): older or duplicate notebooks kept for traceability
 
-Submission-ready notebooks are available in [notebooks](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks).
+The final ablation report lives beside the ablation notebooks at [notebooks/ablations/eaglevision_ablation_report.md](notebooks/ablations/eaglevision_ablation_report.md).
 
-Recommended Kaggle input dataset:
+## Baseline
 
-- `klein2111/scannet-2d`
-- `https://www.kaggle.com/datasets/klein2111/scannet-2d`
+The original baseline integration is isolated under [baseline/depth_anything_v2](baseline/depth_anything_v2). It remains available through:
 
-Notebook entrypoints:
+```bash
+python -m baseline.depth_anything_v2 download
+python -m baseline.depth_anything_v2 infer --input <image-or-folder> --output-dir outputs/baseline
+```
 
-- [kaggle_phase1_setup_train.ipynb](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks/kaggle_phase1_setup_train.ipynb)
-- [kaggle_phase1_eval_infer.ipynb](/C:/Users/Omore/OneDrive/Desktop/EagleVision/notebooks/kaggle_phase1_eval_infer.ipynb)
+## Repository Rules
+
+- Commit source, configs, docs, tests, and small markdown reports.
+- Do not commit raw datasets, generated outputs, local run folders, or large checkpoint artifacts.
+- Use Git LFS only for deliberately retained model artifacts.
+- Keep notebooks in the folder matching their role.
+- Keep `results/` for small reports and result notebooks, not raw experiment dumps.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/repository_guide.md](docs/repository_guide.md) for contributor workflow details.
+
+## Documentation Index
+
+- [Repository Guide](docs/repository_guide.md)
+- [Architecture](docs/architecture.md)
+- [Training Plan](docs/training_plan.md)
+- [Experiments](docs/experiments.md)
+- [Phase 1 Scope](docs/phase1_scope.md)
+- [Kaggle Submission Guide](docs/kaggle_submission.md)
+- [Artifact Policy](docs/artifact_policy.md)
+- [Reproducibility](docs/reproducibility.md)

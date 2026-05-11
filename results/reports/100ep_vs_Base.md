@@ -2,7 +2,7 @@
 
 This folder contains the completed Kaggle evaluation notebook:
 
-`eval-complete-final.ipynb`
+`notebooks/evaluation/eval_complete/eval-complete-final.ipynb`
 
 The notebook is a full evaluation and diagnostic report for EagleVision Phase 1. It is not a training notebook. It evaluates whether the adapted EagleVision checkpoint improves over the raw Depth Anything V2 baseline under the same validation scenes, same source-target pairs, same masks, and same metrics.
 
