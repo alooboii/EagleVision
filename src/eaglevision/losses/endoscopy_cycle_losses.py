@@ -79,9 +79,7 @@ def supervised_depth_losses(adapted_depth: torch.Tensor, gt_depth: torch.Tensor,
     return {"log_l1": log_l1, "silog": silog}
 
 
-def _stereo_disparity(batch: dict[str, Any], adapted_depth: torch.Tensor, min_depth: float) -> torch.Tensor | None:
-    if batch.get("disparity_gt") is not None:
-        return batch["disparity_gt"].to(adapted_depth.device)
+def _predicted_disparity(batch: dict[str, Any], adapted_depth: torch.Tensor, min_depth: float) -> torch.Tensor | None:
     if batch.get("focal_length") is not None and batch.get("baseline") is not None:
         return compute_disparity_from_depth(
             adapted_depth,
@@ -90,6 +88,24 @@ def _stereo_disparity(batch: dict[str, Any], adapted_depth: torch.Tensor, min_de
             min_depth=min_depth,
         )
     return None
+
+
+def supervised_disparity_losses(
+    predicted_disparity: torch.Tensor,
+    gt_disparity: torch.Tensor,
+    mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    pred = _as_bhw(predicted_disparity)
+    target = _as_bhw(gt_disparity).to(pred.device)
+    valid = torch.isfinite(pred) & torch.isfinite(target) & (pred > 0) & (target > 0)
+    if mask is not None:
+        valid = valid & mask.to(pred.device).bool()
+    if not valid.any():
+        zero = pred.new_zeros(())
+        return {"l1": zero, "log_l1": zero}
+    diff = pred[valid] - target[valid]
+    log_diff = torch.log(pred[valid].clamp_min(1e-6)) - torch.log(target[valid].clamp_min(1e-6))
+    return {"l1": diff.abs().mean(), "log_l1": log_diff.abs().mean()}
 
 
 def compute_endoscopy_losses(batch: dict[str, Any], outputs: dict[str, torch.Tensor], config: dict[str, Any]) -> dict[str, torch.Tensor]:
@@ -112,12 +128,14 @@ def compute_endoscopy_losses(batch: dict[str, Any], outputs: dict[str, torch.Ten
         "loss_edge_smoothness": edge_aware_smoothness(adapted_depth, left),
         "loss_supervised_log_l1": zero,
         "loss_supervised_silog": zero,
+        "loss_supervised_disp_l1": zero,
+        "loss_supervised_disp_log_l1": zero,
     }
 
-    disparity = _stereo_disparity(batch, adapted_depth, min_depth=float(config.get("min_depth", 1e-3)))
+    disparity = _predicted_disparity(batch, adapted_depth, min_depth=float(config.get("min_depth", 1e-3)))
     if disparity is None:
         if not _WARNED_NO_STEREO:
-            warnings.warn("No disparity or focal_length+baseline in batch; photometric and cycle losses are zero.", stacklevel=2)
+            warnings.warn("No focal_length+baseline in batch; photometric and cycle losses are zero.", stacklevel=2)
             _WARNED_NO_STEREO = True
     else:
         right_recon = warp_image_with_disparity(left, disparity, direction="left_to_right")
@@ -133,6 +151,11 @@ def compute_endoscopy_losses(batch: dict[str, Any], outputs: dict[str, torch.Ten
         losses["loss_supervised_log_l1"] = supervised["log_l1"]
         losses["loss_supervised_silog"] = supervised["silog"]
 
+    if disparity is not None and batch.get("disparity_gt") is not None:
+        supervised_disp = supervised_disparity_losses(disparity, batch["disparity_gt"], valid_mask)
+        losses["loss_supervised_disp_l1"] = supervised_disp["l1"]
+        losses["loss_supervised_disp_log_l1"] = supervised_disp["log_l1"]
+
     total = zero
     total = total + float(weights.get("photo", 1.0)) * losses["loss_photo"]
     total = total + float(weights.get("cycle_rgb", 0.5)) * losses["loss_cycle_rgb"]
@@ -140,5 +163,7 @@ def compute_endoscopy_losses(batch: dict[str, Any], outputs: dict[str, torch.Ten
     total = total + float(weights.get("edge_smoothness", 0.001)) * losses["loss_edge_smoothness"]
     total = total + float(weights.get("supervised_log_l1", 0.0)) * losses["loss_supervised_log_l1"]
     total = total + float(weights.get("supervised_silog", 0.0)) * losses["loss_supervised_silog"]
+    total = total + float(weights.get("supervised_disp_l1", 0.0)) * losses["loss_supervised_disp_l1"]
+    total = total + float(weights.get("supervised_disp_log_l1", 0.0)) * losses["loss_supervised_disp_log_l1"]
     losses["loss_total"] = total
     return losses

@@ -73,5 +73,5 @@ def warp_image_with_disparity(
 def warp_image_with_depth_calibration(*args: object, **kwargs: object) -> dict[str, torch.Tensor]:
     raise NotImplementedError(
         "Depth+K+T stereo warping is reserved for the next iteration. "
-        "Use disparity_gt or focal_length+baseline to train this first experiment path."
+        "Use predicted depth with focal_length+baseline to train this first experiment path."
     )

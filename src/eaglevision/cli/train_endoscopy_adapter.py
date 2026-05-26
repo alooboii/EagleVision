@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from eaglevision.data.endoscopy_collate import endoscopy_stereo_collate
 from eaglevision.data.endoscopy_stereo_dataset import EndoscopyStereoDataset
+from eaglevision.geometry.stereo_warp import compute_disparity_from_depth, warp_image_with_disparity
 from eaglevision.losses.endoscopy_cycle_losses import compute_endoscopy_losses
 from eaglevision.models.depth.frozen_depth_prior import build_frozen_depth_prior
 from eaglevision.models.residual_log_depth_adapter import ResidualLogDepthAdapter
@@ -25,6 +26,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--train-manifest", type=Path, required=True)
     parser.add_argument("--val-manifest", type=Path, required=True)
+    parser.add_argument("--dry-run", action="store_true")
     return parser
 
 
@@ -66,14 +68,27 @@ def _mean_metrics(items: list[dict[str, float]]) -> dict[str, float]:
 
 def _save_panel(path: Path, batch: dict[str, Any], outputs: dict[str, torch.Tensor]) -> None:
     ensure_dir(path.parent)
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4))
     panels = [
         ("left", tensor_to_image(batch["left_rgb"][0])),
         ("right", tensor_to_image(batch["right_rgb"][0])),
         ("base", depth_to_colormap(outputs["base_depth"][0])),
         ("adapted", depth_to_colormap(outputs["adapted_depth"][0])),
     ]
-    for axis, (title, image) in zip(axes, panels, strict=True):
+    with torch.no_grad():
+        if batch.get("focal_length") is not None and batch.get("baseline") is not None:
+            disparity = compute_disparity_from_depth(outputs["adapted_depth"], batch["focal_length"], batch["baseline"])
+            right_recon = warp_image_with_disparity(batch["left_rgb"], disparity, direction="left_to_right")
+            left_cycle = warp_image_with_disparity(right_recon["warped"], disparity, direction="right_to_left")
+            panels.extend(
+                [
+                    ("pred_disp", depth_to_colormap(disparity[0])),
+                    ("right_recon", tensor_to_image(right_recon["warped"][0])),
+                    ("left_cycle", tensor_to_image(left_cycle["warped"][0])),
+                ]
+            )
+    fig, axes = plt.subplots(1, len(panels), figsize=(3.5 * len(panels), 4))
+    axes_list = list(axes) if hasattr(axes, "__iter__") else [axes]
+    for axis, (title, image) in zip(axes_list, panels, strict=True):
         axis.imshow(image)
         axis.set_title(title)
         axis.axis("off")
@@ -94,6 +109,52 @@ def _save_checkpoint(path: Path, adapter: ResidualLogDepthAdapter, optimizer: to
         },
         path,
     )
+
+
+def _adapter_grad_norm(adapter: ResidualLogDepthAdapter) -> float:
+    total = 0.0
+    for parameter in adapter.parameters():
+        if parameter.grad is not None:
+            total += float(parameter.grad.detach().abs().sum().cpu().item())
+    return total
+
+
+def run_dry_run(
+    config: dict[str, Any],
+    train_manifest: Path,
+    val_manifest: Path,
+    device: torch.device,
+    output_dir: Path,
+    prior_builder=None,
+) -> dict[str, float]:
+    if prior_builder is None:
+        prior_builder = build_frozen_depth_prior
+    train_dataset = _build_dataset(config, train_manifest)
+    _build_dataset(config, val_manifest)
+    train_cfg = config.get("train", {})
+    loader = DataLoader(
+        train_dataset,
+        batch_size=int(train_cfg.get("batch_size", 4)),
+        shuffle=False,
+        num_workers=0,
+        collate_fn=endoscopy_stereo_collate,
+    )
+    batch = _move_batch(next(iter(loader)), device)
+    prior = prior_builder(config.get("base_model", {})).to(device)
+    adapter = ResidualLogDepthAdapter(**config.get("adapter", {})).to(device)
+    for parameter in prior.parameters():
+        parameter.requires_grad = False
+
+    adapter.train()
+    outputs = _make_outputs(prior, adapter, batch)
+    losses = compute_endoscopy_losses(batch, outputs, config.get("loss", {}))
+    adapter.zero_grad(set_to_none=True)
+    losses["loss_total"].backward()
+    grad_norm = _adapter_grad_norm(adapter)
+    if grad_norm <= 0.0:
+        raise RuntimeError("Dry-run failed: loss_total did not produce gradients for adapter parameters.")
+    _save_panel(output_dir / "panels" / "dry_run.png", batch, outputs)
+    return {**{key: float(value.detach().cpu().item()) for key, value in losses.items()}, "adapter_grad_norm": grad_norm}
 
 
 @torch.no_grad()
@@ -125,6 +186,12 @@ def main() -> int:
     ensure_dir(output_dir / "checkpoints")
     ensure_dir(output_dir / "panels")
     save_yaml(output_dir / "config_used.yaml", config)
+
+    if args.dry_run:
+        metrics = run_dry_run(config, args.train_manifest, args.val_manifest, device, output_dir)
+        (output_dir / "dry_run_metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"dry_run": "ok", **metrics}, indent=2))
+        return 0
 
     train_dataset = _build_dataset(config, args.train_manifest)
     val_dataset = _build_dataset(config, args.val_manifest)
