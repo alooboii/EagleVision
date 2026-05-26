@@ -1,0 +1,68 @@
+method: dares_da2s_vector_lora
+seed: 42
+device: cuda
+
+data:
+  root: /kaggle/input/SCARED
+  image_size: [256, 320]
+  min_depth: 1e-3
+  max_depth: 300.0
+  require_baseline_focal: true
+
+base_model:
+  name: depth_anything_v2
+  encoder: small
+  mode: relative
+  profile: hypersim
+  checkpoint_path: null
+  normalize_backbone_input: false
+
+vector_lora:
+  target_patterns:
+    - qkv
+    - proj
+    - fc1
+    - fc2
+  dropout: 0.0
+  schedule_type: decreasing
+  early_rank: 16
+  middle_rank: 8
+  late_rank: 4
+  final_rank: 2
+  early_alpha: 32
+  middle_alpha: 16
+  late_alpha: 8
+  final_alpha: 4
+  per_block_rank: null
+  per_block_alpha: null
+  default_rank: 4
+  default_alpha: 8
+
+loss:
+  reprojection:
+    scales: [1, 2, 4]
+    alpha: 0.85
+    symmetric: true
+  weights:
+    reproj: 1.0
+    smooth: 0.001
+    supervised_depth: 0.0
+    supervised_disparity: 0.0
+
+train:
+  batch_size: 4
+  epochs: 20
+  lr: 1e-4
+  weight_decay: 1e-4
+  num_workers: 2
+  max_steps_per_epoch: null
+  log_interval: 20
+  val_interval: 1
+  amp: true
+  grad_clip_norm: 1.0
+
+eval:
+  batch_size: 1
+  num_workers: 2
+
+output_dir: outputs/dares/dares_da2s_scared

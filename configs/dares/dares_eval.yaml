@@ -1,0 +1,13 @@
+seed: 42
+device: cuda
+
+data:
+  root: /kaggle/input/SCARED
+  image_size: [256, 320]
+  min_depth: 1e-3
+  max_depth: 300.0
+  require_baseline_focal: true
+
+eval:
+  batch_size: 1
+  num_workers: 2
