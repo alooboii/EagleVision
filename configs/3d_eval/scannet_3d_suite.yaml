@@ -1,0 +1,32 @@
+seed: 42
+device: cuda
+
+data:
+  root: /kaggle/input/scannet-2d/scannet
+  image_size: [384, 512]
+  min_depth: 1e-3
+  max_depth: 10.0
+  depth_scale: 1000.0
+
+base_model:
+  name: depth_anything_v2
+  encoder: small
+  mode: relative
+  profile: hypersim
+  checkpoint_path: null
+  freeze: true
+  normalize_backbone_input: false
+
+adapter:
+  hidden_channels: 32
+  residual_scale: 0.1
+  use_tanh: true
+  min_depth: 1e-3
+  max_depth: 10.0
+
+eval:
+  batch_size: 4
+  num_workers: 2
+  num_previews: 16
+  frames_per_scene: 20
+  max_scenes: 20
