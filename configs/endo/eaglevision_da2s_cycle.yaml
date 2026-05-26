@@ -7,6 +7,8 @@ data:
   image_size: [256, 320]
   min_depth: 1e-3
   max_depth: 300.0
+  # Manifest rows must include focal_length and baseline for stereo photo/cycle training.
+  # disparity_gt is used only for optional diagnostics/supervision, never for photo/cycle warping.
 
 base_model:
   name: depth_anything_v2
@@ -32,6 +34,8 @@ loss:
     edge_smoothness: 0.001
     supervised_log_l1: 0.0
     supervised_silog: 0.0
+    supervised_disp_l1: 0.0
+    supervised_disp_log_l1: 0.0
   photometric:
     alpha: 0.85
 

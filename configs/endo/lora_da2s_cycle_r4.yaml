@@ -1,4 +1,4 @@
-method: frozen_da2s
+method: dares_style_lora_da2s_cycle
 seed: 42
 device: cuda
 
@@ -7,8 +7,7 @@ data:
   image_size: [256, 320]
   min_depth: 1e-3
   max_depth: 300.0
-  # Manifest rows must include focal_length and baseline for stereo geometry metrics.
-  # disparity_gt is used only for optional diagnostics/supervision, never for photo/cycle warping.
+  # DARES-style LoRA uses the same stereo geometry path and loss budget as EagleVision.
 
 base_model:
   name: depth_anything_v2
@@ -18,6 +17,12 @@ base_model:
   checkpoint_path: null
   freeze: true
   normalize_backbone_input: false
+
+lora:
+  rank: 4
+  alpha: 8
+  dropout: 0.0
+  target_substrings: ["attn", "q", "v", "proj"]
 
 loss:
   weights:
@@ -32,6 +37,18 @@ loss:
   photometric:
     alpha: 0.85
 
+train:
+  batch_size: 4
+  epochs: 5
+  lr: 1e-4
+  weight_decay: 1e-4
+  num_workers: 2
+  max_steps_per_epoch: null
+  log_interval: 20
+  val_interval: 1
+
 eval:
   batch_size: 1
   num_workers: 2
+
+output_dir: outputs/endo/lora_da2s_cycle_r4

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import numpy as np
+import pytest
 import torch
 from PIL import Image
 
@@ -54,3 +55,22 @@ def test_endoscopy_stereo_dataset_loads_tiny_manifest(tmp_path):
     batch = endoscopy_stereo_collate([sample])
     assert batch["left_rgb"].shape == (1, 3, 2, 3)
     assert batch["sample_id"] == ["seq_frame"]
+
+
+def test_endoscopy_collate_rejects_mixed_optional_fields():
+    samples = [
+        {
+            "sample_id": "with_depth",
+            "left_rgb": torch.zeros(3, 2, 2),
+            "right_rgb": torch.zeros(3, 2, 2),
+            "depth_gt": torch.ones(2, 2),
+        },
+        {
+            "sample_id": "without_depth",
+            "left_rgb": torch.zeros(3, 2, 2),
+            "right_rgb": torch.zeros(3, 2, 2),
+        },
+    ]
+
+    with pytest.raises(ValueError, match="depth_gt.*without_depth"):
+        endoscopy_stereo_collate(samples)

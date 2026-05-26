@@ -17,7 +17,8 @@ from eaglevision.data.endoscopy_stereo_dataset import EndoscopyStereoDataset
 from eaglevision.geometry.stereo_warp import compute_disparity_from_depth, warp_image_with_disparity
 from eaglevision.losses.endoscopy_cycle_losses import photometric_ssim_l1
 from eaglevision.metrics.depth_metrics import compute_depth_metrics
-from eaglevision.models.depth.frozen_depth_prior import build_frozen_depth_prior
+from eaglevision.models.depth.frozen_depth_prior import build_frozen_depth_prior, build_trainable_depth_prior
+from eaglevision.models.peft_lora_da2 import apply_lora_to_named_linears
 from eaglevision.models.residual_log_depth_adapter import ResidualLogDepthAdapter
 from eaglevision.utils.io import ensure_dir, load_yaml
 
@@ -39,6 +40,8 @@ CSV_COLUMNS = [
     "photo_ssim_l1",
     "cycle_rgb_l1",
     "valid_reproj_ratio",
+    "disp_absrel",
+    "disp_rmse",
     "inference_ms",
     "peak_gpu_mem_mb",
 ]
@@ -87,29 +90,71 @@ def _load_adapter(config: dict[str, Any], checkpoint: Path | None, device: torch
     return adapter
 
 
+def _apply_lora_from_config(model: torch.nn.Module, config: dict[str, Any]) -> dict[str, object]:
+    lora_cfg = config.get("lora", {})
+    return apply_lora_to_named_linears(
+        model,
+        target_substrings=list(lora_cfg.get("target_substrings", ["attn", "q", "v", "proj"])),
+        rank=int(lora_cfg.get("rank", 4)),
+        alpha=float(lora_cfg.get("alpha", 8.0)),
+        dropout=float(lora_cfg.get("dropout", 0.0)),
+    )
+
+
+def _load_lora_prior(config: dict[str, Any], checkpoint: Path | None, device: torch.device) -> tuple[torch.nn.Module, dict[str, object]]:
+    prior = build_trainable_depth_prior(config.get("base_model", {})).to(device)
+    summary = _apply_lora_from_config(prior.backbone, config)
+    if checkpoint is not None:
+        payload = torch.load(checkpoint, map_location="cpu")
+        state = payload.get("lora", payload.get("model", payload))
+        missing, unexpected = prior.backbone.load_state_dict(state, strict=False)
+        unexpected_lora = [name for name in unexpected if "lora_" in name]
+        if unexpected_lora:
+            raise RuntimeError(f"Unexpected LoRA checkpoint keys: {unexpected_lora[:10]}")
+        summary = {**summary, "checkpoint_missing_keys": len(missing), "checkpoint_unexpected_keys": len(unexpected)}
+    prior.eval()
+    return prior, summary
+
+
 def _nan_metrics() -> dict[str, float]:
     return {key: float("nan") for key in ("absrel", "sqrel", "rmse", "rmse_log", "silog", "delta1", "delta2", "delta3")}
+
+
+def _disparity_metrics(predicted_disparity: torch.Tensor | None, gt_disparity: torch.Tensor | None) -> dict[str, float]:
+    if predicted_disparity is None or gt_disparity is None:
+        return {"disp_absrel": float("nan"), "disp_rmse": float("nan")}
+    pred = predicted_disparity.squeeze(1) if predicted_disparity.ndim == 4 and predicted_disparity.shape[1] == 1 else predicted_disparity
+    target = gt_disparity.to(pred.device)
+    target = target.squeeze(1) if target.ndim == 4 and target.shape[1] == 1 else target
+    valid = torch.isfinite(pred) & torch.isfinite(target) & (pred > 0) & (target > 0)
+    if not valid.any():
+        return {"disp_absrel": float("nan"), "disp_rmse": float("nan")}
+    diff = pred[valid] - target[valid]
+    return {
+        "disp_absrel": float((diff.abs() / target[valid].clamp_min(1e-6)).mean().detach().cpu().item()),
+        "disp_rmse": float(torch.sqrt((diff**2).mean()).detach().cpu().item()),
+    }
 
 
 def _geometry_metrics(batch: dict[str, Any], prediction: torch.Tensor, config: dict[str, Any]) -> dict[str, float]:
     left = batch["left_rgb"]
     right = batch["right_rgb"]
     disparity = None
-    if batch.get("disparity_gt") is not None:
-        disparity = batch["disparity_gt"]
-    elif batch.get("focal_length") is not None and batch.get("baseline") is not None:
+    if batch.get("focal_length") is not None and batch.get("baseline") is not None:
         disparity = compute_disparity_from_depth(
             prediction,
             batch["focal_length"],
             batch["baseline"],
             min_depth=float(config.get("data", {}).get("min_depth", 1e-3)),
         )
+    disp_metrics = _disparity_metrics(disparity, batch.get("disparity_gt"))
     if disparity is None:
         return {
             "photo_l1": float("nan"),
             "photo_ssim_l1": float("nan"),
             "cycle_rgb_l1": float("nan"),
             "valid_reproj_ratio": float("nan"),
+            **disp_metrics,
         }
 
     reproj = warp_image_with_disparity(left, disparity, direction="left_to_right")
@@ -120,6 +165,7 @@ def _geometry_metrics(batch: dict[str, Any], prediction: torch.Tensor, config: d
             "photo_ssim_l1": float("nan"),
             "cycle_rgb_l1": float("nan"),
             "valid_reproj_ratio": 0.0,
+            **disp_metrics,
         }
     photo_l1 = torch.abs(reproj["warped"] - right).mean(dim=1)[mask].mean()
     photo_ssim_l1 = photometric_ssim_l1(reproj["warped"], right, mask=mask, alpha=float(config.get("loss", {}).get("photometric", {}).get("alpha", 0.85)))
@@ -131,6 +177,7 @@ def _geometry_metrics(batch: dict[str, Any], prediction: torch.Tensor, config: d
         "photo_ssim_l1": float(photo_ssim_l1.detach().cpu().item()),
         "cycle_rgb_l1": float(cycle_rgb_l1.detach().cpu().item()),
         "valid_reproj_ratio": float(mask.float().mean().detach().cpu().item()),
+        **disp_metrics,
     }
 
 
@@ -165,9 +212,14 @@ def main() -> int:
         collate_fn=endoscopy_stereo_collate,
     )
 
-    prior = build_frozen_depth_prior(config.get("base_model", {})).to(device)
-    prior.eval()
-    adapter = _load_adapter(config, args.checkpoint, device)
+    lora_summary: dict[str, object] | None = None
+    if method == "dares_style_lora_da2s_cycle":
+        prior, lora_summary = _load_lora_prior(config, args.checkpoint, device)
+        adapter = None
+    else:
+        prior = build_frozen_depth_prior(config.get("base_model", {})).to(device)
+        prior.eval()
+        adapter = _load_adapter(config, args.checkpoint, device) if method == "eaglevision_da2s_cycle" else None
 
     rows: list[dict[str, Any]] = []
     peak_gpu_mem_mb = float("nan")
@@ -180,11 +232,15 @@ def main() -> int:
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             start = time.perf_counter()
-            base_depth = prior.predict_depth(batch["left_rgb"])
+            if method == "dares_style_lora_da2s_cycle":
+                base_depth = prior.forward_depth(batch["left_rgb"])
+                prediction = base_depth
+            else:
+                base_depth = prior.predict_depth(batch["left_rgb"])
             if adapter is not None:
                 adapter_outputs = adapter(batch["left_rgb"], base_depth)
                 prediction = adapter_outputs["adapted_depth"]
-            else:
+            elif method != "dares_style_lora_da2s_cycle":
                 prediction = base_depth
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
@@ -230,11 +286,14 @@ def main() -> int:
         writer.writerows(rows)
 
     summary = _summarize(rows)
+    if lora_summary is not None:
+        summary["lora"] = lora_summary
+        summary["trainable_param_count"] = lora_summary.get("trainable_lora_params")
     summary_path = args.out.with_suffix(".summary.json")
     md_path = args.out.with_suffix(".summary.md")
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     md_lines = [f"# {method} Endoscopy Evaluation", "", f"- Samples: {len(rows)}"]
-    for key in ("absrel", "rmse", "silog", "photo_l1", "photo_ssim_l1", "cycle_rgb_l1", "inference_ms"):
+    for key in ("absrel", "rmse", "silog", "photo_l1", "photo_ssim_l1", "cycle_rgb_l1", "disp_absrel", "disp_rmse", "inference_ms"):
         value = summary.get(key, float("nan"))
         md_lines.append(f"- {key}: {value:.6g}" if math.isfinite(float(value)) else f"- {key}: NaN")
     md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
