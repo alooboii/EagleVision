@@ -1,0 +1,52 @@
+method: eaglevision_da2s_cycle
+seed: 42
+device: cuda
+
+data:
+  root: /kaggle/input/SCARED
+  image_size: [256, 320]
+  min_depth: 1e-3
+  max_depth: 300.0
+
+base_model:
+  name: depth_anything_v2
+  encoder: small
+  mode: relative
+  profile: hypersim
+  checkpoint_path: null
+  freeze: true
+  normalize_backbone_input: false
+
+adapter:
+  hidden_channels: 32
+  residual_scale: 0.1
+  use_tanh: true
+  min_depth: 1e-3
+  max_depth: 300.0
+
+loss:
+  weights:
+    photo: 1.0
+    cycle_rgb: 0.5
+    prior_log_l1: 0.02
+    edge_smoothness: 0.001
+    supervised_log_l1: 0.0
+    supervised_silog: 0.0
+  photometric:
+    alpha: 0.85
+
+train:
+  batch_size: 4
+  epochs: 5
+  lr: 1e-4
+  weight_decay: 1e-4
+  num_workers: 2
+  max_steps_per_epoch: null
+  log_interval: 20
+  val_interval: 1
+
+eval:
+  batch_size: 1
+  num_workers: 2
+
+output_dir: outputs/endo/eaglevision_da2s_cycle
